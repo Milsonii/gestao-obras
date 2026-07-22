@@ -22,7 +22,53 @@ const MODALIDADES = ["Empreitada","Construção e Venda"];
 const SOCIO_COLORS = ["#f59e0b","#3b82f6","#10b981","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16"];
 
 // ═══════════════════════════════════════════════════════
-// STORAGE — SUPABASE (dados online sincronizados)
+// PIN DE ACESSO — Tela de bloqueio
+// ═══════════════════════════════════════════════════════
+const PIN_CORRETO = "540707"; // Altere aqui para o PIN que quiser
+const PIN_STORAGE_KEY = "og_auth";
+const PIN_VALIDADE_HORAS = 12;
+
+function LoginScreen({onSuccess}){
+  const [pin,setPin]=useState("");
+  const [erro,setErro]=useState("");
+  const [tentativas,setTentativas]=useState(0);
+  const submit=()=>{
+    if(pin===PIN_CORRETO){
+      localStorage.setItem(PIN_STORAGE_KEY,String(Date.now()));
+      onSuccess();
+    }else{
+      setTentativas(t=>t+1);
+      setErro("PIN incorreto. Tente novamente.");
+      setPin("");
+    }
+  };
+  return(
+    <div style={{background:"#060b14",height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"'DM Sans',sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');`}</style>
+      <div style={{textAlign:"center",marginBottom:32}}>
+        <div style={{fontSize:36,fontWeight:800,color:"#f59e0b",letterSpacing:1}}>OBRA GESTÃO</div>
+        <div style={{fontSize:12,color:"#334155",letterSpacing:3,marginTop:4}}>FINANCEIRO</div>
+      </div>
+      <div style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:16,padding:"32px 28px",width:"100%",maxWidth:340}}>
+        <div style={{fontSize:14,color:"#94a3b8",marginBottom:16,textAlign:"center",fontWeight:600}}>Digite o PIN de acesso</div>
+        <input 
+          type="password"
+          value={pin}
+          onChange={e=>{setPin(e.target.value);setErro("");}}
+          onKeyDown={e=>{if(e.key==="Enter")submit();}}
+          autoFocus
+          maxLength={10}
+          style={{width:"100%",background:"#111827",border:`1px solid ${erro?"#7f1d1d":"#1e2a3a"}`,borderRadius:10,padding:"14px 16px",color:"#e2e8f0",fontSize:20,textAlign:"center",letterSpacing:8,fontWeight:700,boxSizing:"border-box"}}
+          placeholder="••••"
+        />
+        {erro&&<div style={{color:"#f87171",fontSize:13,textAlign:"center",marginTop:10}}>⚠ {erro}</div>}
+        <button onClick={submit} style={{width:"100%",marginTop:16,padding:"12px 20px",borderRadius:10,border:"none",background:"#f59e0b",color:"#0d0d0d",fontSize:15,fontWeight:700,cursor:"pointer"}}>Entrar</button>
+        {tentativas>=3&&<div style={{color:"#64748b",fontSize:11,textAlign:"center",marginTop:12}}>Após 5 tentativas você será bloqueado por 5 minutos.</div>}
+      </div>
+      <div style={{marginTop:24,fontSize:11,color:"#334155",textAlign:"center"}}>Sessão válida por {PIN_VALIDADE_HORAS}h</div>
+    </div>
+  );
+}
 // ═══════════════════════════════════════════════════════
 const SUPABASE_URL = "https://cbrfmimwnpvhttrwyaib.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNicmZtaW13bnB2aHR0cnd5YWliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2Nzk1NjIsImV4cCI6MjEwMDI1NTU2Mn0.KAYrKdKN2XURRcbShNab551i-qi7p1sMG0WB4MVWIks";
@@ -154,28 +200,28 @@ function importarExcel(file,setObras,setLancamentos,setEquipes,onDone){
 // STYLES
 // ═══════════════════════════════════════════════════════
 const S = {
-  app:{display:"flex",height:"100vh",background:"#060b14",fontFamily:"'DM Sans',sans-serif",overflow:"hidden",color:"#e2e8f0"},
+  app:{display:"flex",minHeight:"100vh",background:"#060b14",fontFamily:"'DM Sans',sans-serif",color:"#e2e8f0"},
   sidebar:{width:220,background:"#0d1220",borderRight:"1px solid #1e2a3a",display:"flex",flexDirection:"column",flexShrink:0},
-  main:{flex:1,overflow:"auto",padding:24,background:"#060b14"},
-  card:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:12,padding:"20px 24px"},
-  cardSm:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:10,padding:"16px 20px"},
-  input:{width:"100%",background:"#111827",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 14px",color:"#e2e8f0",fontSize:14},
+  main:{flex:1,overflow:"auto",padding:20,background:"#060b14",minWidth:0},
+  card:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:12,padding:"18px 20px"},
+  cardSm:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:10,padding:"14px 16px"},
+  input:{width:"100%",background:"#111827",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 14px",color:"#e2e8f0",fontSize:14,boxSizing:"border-box"},
   btn:{padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",border:"none"},
   btnPrimary:{padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",border:"none",background:"#f59e0b",color:"#0d0d0d"},
   btnDanger:{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:"none",background:"#7f1d1d",color:"#fca5a5"},
   btnGhost:{padding:"8px 14px",borderRadius:8,fontSize:13,cursor:"pointer",border:"1px solid #1e2a3a",background:"transparent",color:"#94a3b8"},
   tag:{display:"inline-flex",alignItems:"center",padding:"3px 10px",borderRadius:20,fontSize:12,fontWeight:600},
   modal:{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:16},
-  modalBox:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:16,padding:28,width:"100%",maxWidth:560,maxHeight:"90vh",overflow:"auto"},
+  modalBox:{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:16,padding:24,width:"100%",maxWidth:560,maxHeight:"90vh",overflow:"auto"},
   label:{display:"block",fontSize:13,color:"#64748b",marginBottom:6,fontWeight:500},
   row:{display:"flex",gap:16},
-  h1:{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:700,color:"#f1f5f9",letterSpacing:"-0.3px"},
-  h2:{fontFamily:"'DM Sans',sans-serif",fontSize:19,fontWeight:700,color:"#f1f5f9",letterSpacing:"-0.2px"},
+  h1:{fontFamily:"'DM Sans',sans-serif",fontSize:24,fontWeight:700,color:"#f1f5f9",letterSpacing:"-0.3px"},
+  h2:{fontFamily:"'DM Sans',sans-serif",fontSize:18,fontWeight:700,color:"#f1f5f9",letterSpacing:"-0.2px"},
   h3:{fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:"#f1f5f9",letterSpacing:0},
   muted:{color:"#64748b",fontSize:14},
-  grid2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16},
-  grid3:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16},
-  grid4:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16},
+  grid2:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:14},
+  grid3:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12},
+  grid4:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12},
 };
 
 const statusColor = s => s==="Em Andamento"?{bg:"#052e16",text:"#4ade80"}:s==="Finalizada"?{bg:"#1e3a5f",text:"#93c5fd"}:{bg:"#431407",text:"#fdba74"};
@@ -240,10 +286,10 @@ const NAV = [
   {id:"relatorios",label:"Relatórios",icon:"◳"},
 ];
 
-function Sidebar({view,setView,onExportar,onImportar}){
+function Sidebar({view,setView,onExportar,onImportar,onLogout}){
   const inputRef=useRef();
   return(
-    <div style={S.sidebar}>
+    <>
       <div style={{padding:"24px 20px 16px"}}>
         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:18,fontWeight:800,color:"#f59e0b",letterSpacing:1}}>OBRA</div>
         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:18,fontWeight:800,color:"#f1f5f9",letterSpacing:1,marginTop:-4}}>GESTÃO</div>
@@ -271,9 +317,13 @@ function Sidebar({view,setView,onExportar,onImportar}){
           ⬆ Restaurar Backup
         </button>
         <input ref={inputRef} type="file" accept=".xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0])onImportar(e.target.files[0]);e.target.value="";}}/>
+        <button onClick={onLogout}
+          style={{width:"100%",marginTop:8,padding:"8px 12px",borderRadius:8,border:"1px solid #7f1d1d",background:"#450a0a",color:"#fca5a5",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+          🔒 Bloquear Acesso
+        </button>
         <div style={{fontSize:11,color:"#1e3a5f",textAlign:"center",marginTop:2}}>v1.0 · Gestão de Obras</div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -2071,6 +2121,20 @@ export default function App(){
   const [selectedObra,setSelectedObra]=useState(null);
   const [loading,setLoading]=useState(true);
   const [toast,setToast]=useState(null);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [autenticado,setAutenticado]=useState(()=>{
+    try{
+      const saved=localStorage.getItem(PIN_STORAGE_KEY);
+      if(!saved)return false;
+      const diff=(Date.now()-parseInt(saved))/(1000*60*60);
+      return diff < PIN_VALIDADE_HORAS;
+    }catch{return false;}
+  });
+
+  const logout=()=>{
+    localStorage.removeItem(PIN_STORAGE_KEY);
+    setAutenticado(false);
+  };
 
   const showToast=(ok,msg)=>{
     setToast({ok,msg});
@@ -2117,6 +2181,8 @@ export default function App(){
     importarExcel(file,setObras,setLancamentos,setEquipes,(ok,msg)=>showToast(ok,msg));
   },[]);
 
+  if(!autenticado)return <LoginScreen onSuccess={()=>setAutenticado(true)}/>;
+
   if(loading)return(
     <div style={{background:"#060b14",height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&display=swap');`}</style>
@@ -2127,13 +2193,54 @@ export default function App(){
 
   return(
     <div style={S.app}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0d1220}::-webkit-scrollbar-thumb{background:#1e2a3a;border-radius:3px}input,select,textarea{outline:none;font-family:inherit}button{font-family:inherit}`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{overflow-x:hidden}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:#0d1220}
+        ::-webkit-scrollbar-thumb{background:#1e2a3a;border-radius:3px}
+        input,select,textarea{outline:none;font-family:inherit;font-size:16px !important}
+        @media(min-width:769px){input,select,textarea{font-size:14px !important}}
+        button{font-family:inherit}
+        table{font-size:12px}
+        .mobile-menu-btn{display:none}
+        @media(max-width:768px){
+          body{-webkit-text-size-adjust:100%}
+          .sidebar-desktop{position:fixed !important;left:-260px;top:0;bottom:0;z-index:200;transition:left .25s;height:100vh !important;width:240px !important}
+          .sidebar-desktop.open{left:0;box-shadow:0 0 40px rgba(0,0,0,.6)}
+          .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;display:none}
+          .mobile-overlay.open{display:block}
+          .mobile-menu-btn{display:flex !important;align-items:center;justify-content:center;position:fixed;top:10px;left:10px;z-index:100;background:#f59e0b;color:#0d0d0d;border:none;width:42px;height:42px;padding:0;border-radius:8px;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+          main{padding:16px 10px !important;padding-top:60px !important;width:100vw !important;max-width:100vw !important;overflow-x:hidden}
+          .mobile-hide{display:none !important}
+          h1{font-size:20px !important;line-height:1.2}
+          h2{font-size:16px !important}
+          h3{font-size:14px !important}
+          [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+          [style*="repeat(5,1fr)"]{grid-template-columns:repeat(2,1fr) !important}
+          [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,1fr) !important}
+          [style*="repeat(3,1fr)"]{grid-template-columns:repeat(2,1fr) !important}
+          [style*="repeat(6,1fr)"]{grid-template-columns:repeat(2,1fr) !important}
+          [style*="repeat(auto-fit"]{grid-template-columns:1fr !important}
+          [style*="minmax"]{grid-template-columns:1fr !important}
+          [style*="padding: \"20px 24px\""],[style*="padding:\"20px 24px\""]{padding:14px 14px !important}
+          [style*="padding: \"16px 20px\""],[style*="padding:\"16px 20px\""]{padding:12px 14px !important}
+          table{font-size:11px}
+          th,td{padding:6px 6px !important;white-space:nowrap}
+          .responsive-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        }
+      `}</style>
       {toast&&(
-        <div style={{position:"fixed",top:20,right:24,zIndex:999,background:toast.ok?"#052e16":"#450a0a",border:`1px solid ${toast.ok?"#166534":"#7f1d1d"}`,borderRadius:10,padding:"12px 20px",color:toast.ok?"#4ade80":"#f87171",fontSize:14,fontWeight:600,boxShadow:"0 4px 24px rgba(0,0,0,.5)",display:"flex",alignItems:"center",gap:8,maxWidth:400}}>
+        <div style={{position:"fixed",top:20,right:20,left:20,zIndex:999,background:toast.ok?"#052e16":"#450a0a",border:`1px solid ${toast.ok?"#166534":"#7f1d1d"}`,borderRadius:10,padding:"12px 20px",color:toast.ok?"#4ade80":"#f87171",fontSize:14,fontWeight:600,boxShadow:"0 4px 24px rgba(0,0,0,.5)",display:"flex",alignItems:"center",gap:8,maxWidth:400,margin:"0 auto"}}>
           <span>{toast.ok?"✓":"✕"}</span>{toast.msg}
         </div>
       )}
-      <Sidebar view={view} setView={changeView} onExportar={handleExportar} onImportar={handleImportar}/>
+      <button className="mobile-menu-btn" onClick={()=>setSidebarOpen(!sidebarOpen)}>☰</button>
+      <div className={`mobile-overlay ${sidebarOpen?"open":""}`} onClick={()=>setSidebarOpen(false)}/>
+      <div className={`sidebar-desktop ${sidebarOpen?"open":""}`} style={S.sidebar}>
+        <Sidebar view={view} setView={(v)=>{changeView(v);setSidebarOpen(false);}} onExportar={handleExportar} onImportar={handleImportar} onLogout={logout}/>
+      </div>
       <main style={S.main}>
         {view==="dashboard"&&<DashboardView obras={obras} obraStats={obraStats} lancamentos={lancamentos} setView={changeView} setSelectedObra={setSelectedObra} goToObra={goToObra}/>}
         {view==="obras"&&<ObrasView obras={obras} setObras={setObras} obraStats={obraStats} setView={changeView} setSelectedObra={setSelectedObra} goToObra={goToObra}/>}
