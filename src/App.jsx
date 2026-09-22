@@ -6,8 +6,9 @@ import * as XLSX from "xlsx";
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
 const CATS = ["Mão de Obra","Material","Equipamento","Comissão","Outros"];
+const TIPOS_EMPREITADA = ["Alvenaria/Estrutura","Pintura","Elétrica","Hidráulica","Azulejista/Revestimento","Gesso","Cobertura","Acabamento","Marcenaria","Serralheria","Outros"];
 const SUBCATS = {
-  "Mão de Obra":["Pedreiro","Servente","Eletricista","Encanador","Pintor","Carpinteiro","Gesseiro","Outro"],
+  "Mão de Obra":["Alvenaria/Estrutura","Pintura","Elétrica","Hidráulica","Azulejista/Revestimento","Gesso","Cobertura","Acabamento","Marcenaria","Serralheria","Servente","Diarista","Outros"],
   "Material":["Cimento","Aço/Ferro","Tijolo","Areia","Brita","Madeira","Elétrico","Hidráulico","Acabamento","Tinta","Outro"],
   "Equipamento":["Betoneira","Andaime","Escavadeira","Guindaste","Compactador","Outro"],
   "Comissão":["Vendedor","Indicação","Corretor","Engenheiro","Arquiteto","Captador","Sócio","Outro"],
@@ -618,34 +619,44 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
 
       {filtrados.length===0?<div style={{color:"#334155",fontSize:13,textAlign:"center",padding:24}}>Nenhum lançamento encontrado com esses filtros</div>:(
         <div style={{overflowX:"auto",maxHeight:500}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+            <colgroup>
+              <col style={{width:"72px"}}/>
+              <col style={{width:"52px"}}/>
+              <col style={{width:"24%"}}/>
+              <col style={{width:"auto"}}/>
+              <col style={{width:"16%"}}/>
+              <col style={{width:"110px"}}/>
+            </colgroup>
             <thead style={{position:"sticky",top:0,background:"#0d1220",zIndex:1}}>
               <tr style={{borderBottom:"1px solid #1e2a3a"}}>
-                {["Data","Tipo","Categoria","Subcategoria","Descrição","Responsável","Pgto","Valor"].map(h=>(
-                  <th key={h} style={{textAlign:"left",padding:"8px 12px",color:"#475569",fontWeight:500,whiteSpace:"nowrap"}}>{h}</th>
+                {["Data","Tipo","Categoria","Descrição","Responsável","Valor"].map(h=>(
+                  <th key={h} style={{textAlign:h==="Valor"?"right":"left",padding:"7px 8px",color:"#475569",fontWeight:600,fontSize:11,letterSpacing:.3,whiteSpace:"nowrap"}}>{h.toUpperCase()}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtrados.map(l=>(
-                <tr key={l.id} style={{borderBottom:"1px solid #111827",transition:"background .1s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background="#111827"}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <td style={{padding:"10px 12px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(l.data)}</td>
-                  <td style={{padding:"10px 12px"}}><span style={{...S.tag,background:l.tipo==="Receita"?"#052e16":"#450a0a",color:l.tipo==="Receita"?"#4ade80":"#f87171"}}>{l.tipo}</span></td>
-                  <td style={{padding:"10px 12px",color:"#94a3b8"}}>{l.categoria||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#64748b"}}>{l.subcategoria||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#e2e8f0",maxWidth:200}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
-                  <td style={{padding:"10px 12px",color:"#64748b"}}>{l.responsavel||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#475569",whiteSpace:"nowrap"}}>{l.pagamento||"—"}</td>
-                  <td style={{padding:"10px 12px",fontWeight:700,color:l.tipo==="Receita"?"#4ade80":"#f87171",whiteSpace:"nowrap"}}>{l.tipo==="Receita"?"+":"-"}{fmt(l.valor)}</td>
-                </tr>
-              ))}
+              {filtrados.map(l=>{
+                const cat=l.categoria||"";
+                const sub=l.subcategoria||"";
+                return(
+                  <tr key={l.id} style={{borderBottom:"1px solid #111827",transition:"background .1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#111827"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <td style={{padding:"7px 8px",color:"#64748b",whiteSpace:"nowrap",fontSize:11}}>{fmtDate(l.data)}</td>
+                    <td style={{padding:"7px 8px"}}><span style={{display:"inline-block",padding:"2px 6px",borderRadius:4,fontSize:10,fontWeight:700,background:l.tipo==="Receita"?"#052e16":"#450a0a",color:l.tipo==="Receita"?"#4ade80":"#f87171"}}>{l.tipo==="Receita"?"REC":"DES"}</span></td>
+                    <td style={{padding:"7px 8px",color:"#94a3b8"}} title={`${cat}${sub?` · ${sub}`:""}`}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat||"—"}{sub&&<span style={{color:"#64748b",fontSize:10}}> · {sub}</span>}</div></td>
+                    <td style={{padding:"7px 8px",color:"#e2e8f0"}} title={l.descricao||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
+                    <td style={{padding:"7px 8px",color:"#64748b"}} title={l.responsavel||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.responsavel||"—"}</div></td>
+                    <td style={{padding:"7px 8px",fontWeight:700,color:l.tipo==="Receita"?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right",fontSize:12}} title={l.pagamento?`Pgto: ${l.pagamento}`:""}>{l.tipo==="Receita"?"+":"-"}{fmt(l.valor)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr style={{borderTop:"2px solid #1e2a3a",fontWeight:700}}>
-                <td colSpan={7} style={{padding:"10px 12px",color:"#64748b",fontSize:12}}>{filtrados.length} lançamento(s)</td>
-                <td style={{padding:"10px 12px",color:(totalRec-totalDesp)>=0?"#4ade80":"#f87171",whiteSpace:"nowrap"}}>{fmt(totalRec-totalDesp)}</td>
+                <td colSpan={5} style={{padding:"10px 8px",color:"#64748b",fontSize:11}}>{filtrados.length} lançamento(s)</td>
+                <td style={{padding:"10px 8px",color:(totalRec-totalDesp)>=0?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right"}}>{fmt(totalRec-totalDesp)}</td>
               </tr>
             </tfoot>
           </table>
@@ -658,7 +669,7 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
 // ═══════════════════════════════════════════════════════
 // OBRA DETAIL DASHBOARD
 // ═══════════════════════════════════════════════════════
-function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,allObras}){
+function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,allObras,onVincularLancamentos}){
   if(!obra)return null;
   const st=stats||{};
 
@@ -684,6 +695,70 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
     setModalAditivo(false);
   };
   const removeAditivo=id=>onUpdateObra({...obra,aditivos:aditivos.filter(a=>a.id!==id)});
+
+  // Empreitadas de Mão de Obra
+  const [modalEmp,setModalEmp]=useState(false);
+  const [empEditando,setEmpEditando]=useState(null);
+  const [novaEmp,setNovaEmp]=useState({servico:"Alvenaria/Estrutura",servicoCustom:"",valorFechado:"",empreiteiro:"",observacao:"",data:today()});
+  const empreitadas=obra.empreitadas||[];
+
+  const saveEmpreitada=()=>{
+    const servicoFinal=novaEmp.servico==="Outros"?novaEmp.servicoCustom.trim():novaEmp.servico;
+    if(!servicoFinal)return alert("Serviço obrigatório");
+    if(!novaEmp.valorFechado||parseFloat(novaEmp.valorFechado)<=0)return alert("Valor fechado inválido");
+    const nova={
+      id:empEditando?.id||uid(),
+      servico:servicoFinal,
+      valorFechado:parseFloat(novaEmp.valorFechado),
+      empreiteiro:novaEmp.empreiteiro,
+      observacao:novaEmp.observacao,
+      data:novaEmp.data,
+      criadoEm:empEditando?.criadoEm||new Date().toISOString()
+    };
+    const novas=empEditando?empreitadas.map(e=>e.id===empEditando.id?nova:e):[...empreitadas,nova];
+    onUpdateObra({...obra,empreitadas:novas});
+    setNovaEmp({servico:"Alvenaria/Estrutura",servicoCustom:"",valorFechado:"",empreiteiro:"",observacao:"",data:today()});
+    setEmpEditando(null);
+    setModalEmp(false);
+  };
+  const removeEmpreitada=id=>{
+    if(!confirm("Remover esta empreitada? Os lançamentos já registrados permanecem."))return;
+    onUpdateObra({...obra,empreitadas:empreitadas.filter(e=>e.id!==id)});
+  };
+  const editEmpreitada=e=>{
+    setEmpEditando(e);
+    const isCustom=!TIPOS_EMPREITADA.includes(e.servico);
+    setNovaEmp({
+      servico:isCustom?"Outros":e.servico,
+      servicoCustom:isCustom?e.servico:"",
+      valorFechado:String(e.valorFechado),
+      empreiteiro:e.empreiteiro||"",
+      observacao:e.observacao||"",
+      data:e.data||today()
+    });
+    setModalEmp(true);
+  };
+
+  // Vinculação de lançamentos existentes a uma empreitada
+  const [modalVinc,setModalVinc]=useState(null); // guarda a empreitada selecionada
+  const [vincSelecionados,setVincSelecionados]=useState([]);
+  const [vincBusca,setVincBusca]=useState("");
+  const [vincModo,setVincModo]=useState("nao-vinculados"); // nao-vinculados | vinculados | todos
+  const abrirVincular=e=>{setModalVinc(e);setVincSelecionados([]);setVincBusca("");setVincModo("nao-vinculados");};
+  const toggleVinc=id=>setVincSelecionados(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+  const confirmarVinculo=(novaSubcat)=>{
+    if(vincSelecionados.length===0){alert("Selecione ao menos um lançamento");return;}
+    // vamos precisar de callback para atualizar lancamentos - será via prop
+    onVincularLancamentos&&onVincularLancamentos(vincSelecionados,novaSubcat);
+    setModalVinc(null);
+    setVincSelecionados([]);
+  };
+
+  // calcula quanto foi pago em cada empreitada baseado nos lançamentos
+  const empreitadasCalc=empreitadas.map(e=>{
+    const pago=lancamentos.filter(l=>l.tipo==="Despesa"&&l.categoria==="Mão de Obra"&&l.subcategoria===e.servico).reduce((s,l)=>s+l.valor,0);
+    return{...e,pago,saldo:e.valorFechado-pago,pct:pct(pago,e.valorFechado)};
+  });
 
   const receitas=lancamentos.filter(l=>l.tipo==="Receita");
   const despesas=lancamentos.filter(l=>l.tipo==="Despesa");
@@ -850,6 +925,67 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
 
       {lucro<0&&<Alert type="danger" msg={`PREJUÍZO: Esta obra está com deficit de ${fmt(Math.abs(lucro))} em relação ao contrato atualizado.`}/>}
       {pct(st.despesas||0,contratoAtualizado)>100&&<Alert type="warn" msg="ORÇAMENTO ESTOURADO: As despesas ultrapassaram o valor do contrato atualizado."/>}
+
+      {/* PAINEL DE EMPREITADAS DE MÃO DE OBRA */}
+      <div style={{background:"#1a1206",border:"1px solid #78350f",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+          <div>
+            <div style={{fontSize:12,color:"#fbbf24",fontWeight:700,letterSpacing:.8}}>👷 EMPREITADAS DE MÃO DE OBRA</div>
+            <div style={{fontSize:11,color:"#78716c",marginTop:2}}>
+              {empreitadas.length} empreitada(s) fechada(s) · Fechado total: <span style={{color:"#fbbf24",fontWeight:700}}>{fmt(empreitadas.reduce((s,e)=>s+e.valorFechado,0))}</span> · Pago: <span style={{color:"#f87171",fontWeight:700}}>{fmt(empreitadasCalc.reduce((s,e)=>s+e.pago,0))}</span>
+            </div>
+          </div>
+          <button onClick={()=>{setEmpEditando(null);setNovaEmp({servico:"Alvenaria/Estrutura",servicoCustom:"",valorFechado:"",empreiteiro:"",observacao:"",data:today()});setModalEmp(true);}} style={{padding:"7px 14px",borderRadius:8,border:"1px solid #92400e",background:"#78350f",color:"#fbbf24",fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Nova Empreitada</button>
+        </div>
+        {empreitadas.length===0?(
+          <div style={{fontSize:13,color:"#57534e",padding:"8px 0"}}>Nenhuma empreitada cadastrada. Registre os serviços fechados (Alvenaria, Pintura, Elétrica etc.) para controlar o pagamento contra o valor combinado.</div>
+        ):(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
+            {empreitadasCalc.map(e=>{
+              const cor=e.pct>=100?"#ef4444":e.pct>=80?"#f59e0b":"#10b981";
+              const excedido=e.pago>e.valorFechado;
+              return(
+                <div key={e.id} style={{background:"#0d0904",border:`1px solid ${excedido?"#7f1d1d":"#78350f"}`,borderRadius:10,padding:"12px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6}}>
+                    <div style={{minWidth:0,flex:1}}>
+                      <div style={{fontWeight:700,color:"#fef3c7",fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.servico}</div>
+                      {e.empreiteiro&&<div style={{fontSize:11,color:"#a8a29e",marginTop:2}}>👤 {e.empreiteiro}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:4}}>
+                      <button onClick={()=>abrirVincular(e)} style={{background:"none",border:"none",color:"#93c5fd",cursor:"pointer",fontSize:13,padding:2}} title="Vincular lançamentos existentes">🔗</button>
+                      <button onClick={()=>editEmpreitada(e)} style={{background:"none",border:"none",color:"#78716c",cursor:"pointer",fontSize:13,padding:2}} title="Editar">✎</button>
+                      <button onClick={()=>removeEmpreitada(e.id)} style={{background:"none",border:"none",color:"#57534e",cursor:"pointer",fontSize:13,padding:2}} title="Remover">✕</button>
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:9,color:"#57534e",fontWeight:600}}>FECHADO</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#fbbf24"}}>{fmt(e.valorFechado)}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,color:"#57534e",fontWeight:600}}>PAGO</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#f87171"}}>{fmt(e.pago)}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,color:"#57534e",fontWeight:600}}>{excedido?"EXCEDIDO":"SALDO"}</div>
+                      <div style={{fontSize:12,fontWeight:700,color:excedido?"#ef4444":"#10b981"}}>{excedido?"+"+fmt(Math.abs(e.saldo)):fmt(e.saldo)}</div>
+                    </div>
+                  </div>
+                  <div style={{background:"#1c1917",borderRadius:4,height:6,overflow:"hidden"}}>
+                    <div style={{height:"100%",background:cor,width:`${Math.min(100,e.pct)}%`,borderRadius:4,transition:"width .5s"}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:10}}>
+                    <span style={{color:"#57534e"}}>Executado</span>
+                    <span style={{color:cor,fontWeight:700}}>{e.pct}%</span>
+                  </div>
+                  {e.observacao&&<div style={{marginTop:8,padding:"6px 8px",background:"#1c1917",borderRadius:5,fontSize:11,color:"#a8a29e",lineHeight:1.4}}>{e.observacao}</div>}
+                  {excedido&&<div style={{marginTop:6,fontSize:10,color:"#fca5a5",fontWeight:600}}>⚠ Ultrapassou o valor fechado em {fmt(Math.abs(e.saldo))}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* PAINEL DE SÓCIOS — só para Construção e Venda */}
       {obra.modalidade==="Construção e Venda"&&obra.socios&&obra.socios.length>0&&(()=>{
@@ -1033,6 +1169,44 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
         </div>
       </Modal>
 
+      {/* Modal Empreitada */}
+      <Modal open={modalEmp} onClose={()=>{setModalEmp(false);setEmpEditando(null);}} title={empEditando?"Editar Empreitada":"Nova Empreitada de Mão de Obra"}>
+        <div style={{background:"#1a1206",border:"1px solid #78350f",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#fbbf24"}}>
+          ℹ Registre o serviço fechado por empreitada. Os pagamentos vinculados (via subcategoria de Mão de Obra) serão automaticamente abatidos do valor combinado.
+        </div>
+        <FormField label="Serviço *">
+          <select style={S.input} value={novaEmp.servico} onChange={e=>setNovaEmp(p=>({...p,servico:e.target.value}))}>
+            {TIPOS_EMPREITADA.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </FormField>
+        {novaEmp.servico==="Outros"&&(
+          <FormField label="Especifique o serviço *">
+            <input style={S.input} value={novaEmp.servicoCustom} onChange={e=>setNovaEmp(p=>({...p,servicoCustom:e.target.value}))} placeholder="Ex: Impermeabilização, Drywall..."/>
+          </FormField>
+        )}
+        <div style={S.grid2}>
+          <FormField label="Valor Fechado (R$) *">
+            <input style={S.input} type="number" step="0.01" value={novaEmp.valorFechado} onChange={e=>setNovaEmp(p=>({...p,valorFechado:e.target.value}))} placeholder="0,00"/>
+          </FormField>
+          <FormField label="Empreiteiro / Responsável">
+            <input style={S.input} value={novaEmp.empreiteiro} onChange={e=>setNovaEmp(p=>({...p,empreiteiro:e.target.value}))} placeholder="Nome do responsável"/>
+          </FormField>
+        </div>
+        <FormField label="Data de Fechamento">
+          <input style={S.input} type="date" value={novaEmp.data} onChange={e=>setNovaEmp(p=>({...p,data:e.target.value}))}/>
+        </FormField>
+        <FormField label="Observação / Escopo Contratado">
+          <textarea style={{...S.input,minHeight:80,resize:"vertical",fontFamily:"inherit"}} value={novaEmp.observacao} onChange={e=>setNovaEmp(p=>({...p,observacao:e.target.value}))} placeholder="Descreva o que foi acordado: escopo dos serviços, condições, prazos, materiais inclusos ou não..."/>
+        </FormField>
+        <div style={{background:"#052e16",border:"1px solid #166534",borderRadius:8,padding:"8px 12px",marginBottom:14,fontSize:12,color:"#4ade80"}}>
+          ✓ Ao lançar pagamentos de <strong>Mão de Obra</strong> escolhendo a subcategoria <strong>"{novaEmp.servico==="Outros"?(novaEmp.servicoCustom||"seu serviço"):novaEmp.servico}"</strong>, o valor será automaticamente abatido desta empreitada.
+        </div>
+        <div style={{display:"flex",gap:12,justifyContent:"flex-end",marginTop:12}}>
+          <button style={S.btnGhost} onClick={()=>{setModalEmp(false);setEmpEditando(null);}}>Cancelar</button>
+          <button style={S.btnPrimary} onClick={saveEmpreitada}>{empEditando?"Salvar Alterações":"Registrar Empreitada"}</button>
+        </div>
+      </Modal>
+
       {/* Modal Lançamento Rápido */}
       <Modal open={modalLanc} onClose={()=>{setModalLanc(false);setDefaultCatLanc(null);setDefaultTipoLanc(null);}} title={`Novo ${defaultTipoLanc||"Lançamento"} — ${obra.nome}`}>
         <LancamentoForm 
@@ -1044,6 +1218,129 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
           onClose={()=>{setModalLanc(false);setDefaultCatLanc(null);setDefaultTipoLanc(null);}}
         />
       </Modal>
+
+      {/* Modal Vincular Lançamentos à Empreitada */}
+      {modalVinc&&(()=>{
+        const mdoLans=lancamentos.filter(l=>l.tipo==="Despesa"&&l.categoria==="Mão de Obra");
+        const vinculados=mdoLans.filter(l=>l.subcategoria===modalVinc.servico);
+        const naoVinculados=mdoLans.filter(l=>l.subcategoria!==modalVinc.servico);
+        const lista=vincModo==="vinculados"?vinculados:vincModo==="todos"?mdoLans:naoVinculados;
+        const filtrada=vincBusca?lista.filter(l=>`${l.descricao} ${l.responsavel} ${l.subcategoria}`.toLowerCase().includes(vincBusca.toLowerCase())):lista;
+        const totalSel=filtrada.filter(l=>vincSelecionados.includes(l.id)).reduce((s,l)=>s+l.valor,0);
+        return(
+          <div style={S.modal} onClick={e=>{if(e.target===e.currentTarget)setModalVinc(null);}}>
+            <div style={{...S.modalBox,maxWidth:780}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+                <div>
+                  <div style={{...S.h2,marginBottom:2}}>🔗 Vincular Lançamentos</div>
+                  <div style={{fontSize:12,color:"#64748b"}}>Empreitada: <strong style={{color:"#fbbf24"}}>{modalVinc.servico}</strong> · Fechado: {fmt(modalVinc.valorFechado)}</div>
+                </div>
+                <button onClick={()=>setModalVinc(null)} style={{background:"none",border:"none",color:"#64748b",fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+              </div>
+
+              <div style={{background:"#0c1f3a",border:"1px solid #1e3a5f",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#93c5fd"}}>
+                ℹ Selecione os lançamentos de Mão de Obra da obra que pertencem a esta empreitada. Ao confirmar, a subcategoria será atualizada em lote e os valores serão abatidos automaticamente.
+              </div>
+
+              {/* Filtros */}
+              <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                <input style={{...S.input,flex:1,minWidth:180,padding:"7px 12px",fontSize:13}} placeholder="Buscar por descrição, responsável..." value={vincBusca} onChange={e=>setVincBusca(e.target.value)}/>
+                <div style={{display:"flex",gap:4}}>
+                  {[
+                    {v:"nao-vinculados",l:"Sem vínculo",c:naoVinculados.length},
+                    {v:"vinculados",l:"Já vinculados",c:vinculados.length},
+                    {v:"todos",l:"Todos",c:mdoLans.length},
+                  ].map(m=>(
+                    <button key={m.v} onClick={()=>{setVincModo(m.v);setVincSelecionados([]);}}
+                      style={{padding:"7px 12px",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                        background:vincModo===m.v?"#1a2b45":"transparent",
+                        borderColor:vincModo===m.v?"#1e3a5f":"#1e2a3a",
+                        color:vincModo===m.v?"#93c5fd":"#64748b"}}>
+                      {m.l} ({m.c})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lista */}
+              <div style={{maxHeight:380,overflowY:"auto",border:"1px solid #1e2a3a",borderRadius:8,background:"#0d1220"}}>
+                {filtrada.length===0?(
+                  <div style={{padding:32,textAlign:"center",color:"#334155",fontSize:13}}>
+                    {vincModo==="nao-vinculados"?"Nenhum lançamento de Mão de Obra sem vínculo nesta obra.":vincModo==="vinculados"?"Nenhum lançamento vinculado a esta empreitada ainda.":"Nenhum lançamento de Mão de Obra encontrado."}
+                  </div>
+                ):(
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                    <thead style={{position:"sticky",top:0,background:"#0d1220",zIndex:1}}>
+                      <tr style={{borderBottom:"1px solid #1e2a3a"}}>
+                        <th style={{padding:"8px 10px",width:32}}>
+                          <input type="checkbox" 
+                            checked={filtrada.length>0&&filtrada.every(l=>vincSelecionados.includes(l.id))}
+                            onChange={e=>setVincSelecionados(e.target.checked?filtrada.map(l=>l.id):[])}
+                            style={{cursor:"pointer"}}/>
+                        </th>
+                        {["Data","Subcategoria","Descrição","Responsável","Valor"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",color:"#475569",fontWeight:500}}>{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrada.sort((a,b)=>b.data>a.data?1:-1).map(l=>{
+                        const sel=vincSelecionados.includes(l.id);
+                        const vincEsta=l.subcategoria===modalVinc.servico;
+                        return(
+                          <tr key={l.id} onClick={()=>toggleVinc(l.id)}
+                            style={{borderBottom:"1px solid #111827",cursor:"pointer",background:sel?"#1a2b45":"transparent"}}>
+                            <td style={{padding:"8px 10px"}} onClick={e=>e.stopPropagation()}>
+                              <input type="checkbox" checked={sel} onChange={()=>toggleVinc(l.id)} style={{cursor:"pointer"}}/>
+                            </td>
+                            <td style={{padding:"8px 10px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(l.data)}</td>
+                            <td style={{padding:"8px 10px"}}>
+                              {l.subcategoria?<span style={{color:vincEsta?"#4ade80":"#fbbf24",fontSize:11,fontWeight:600}}>{l.subcategoria}{vincEsta?" ✓":""}</span>:<span style={{color:"#475569",fontStyle:"italic"}}>sem vínculo</span>}
+                            </td>
+                            <td style={{padding:"8px 10px",color:"#e2e8f0"}}>{l.descricao||"—"}</td>
+                            <td style={{padding:"8px 10px",color:"#94a3b8"}}>{l.responsavel||"—"}</td>
+                            <td style={{padding:"8px 10px",fontWeight:700,color:"#f87171",whiteSpace:"nowrap"}}>{fmt(l.valor)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Barra de seleção */}
+              {vincSelecionados.length>0&&(
+                <div style={{marginTop:12,padding:"10px 14px",background:"#1a2b45",border:"1px solid #1e3a5f",borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                  <span style={{fontSize:13,color:"#93c5fd"}}>
+                    <strong>{vincSelecionados.length}</strong> selecionado(s) · Total: <strong style={{color:"#fbbf24"}}>{fmt(totalSel)}</strong>
+                  </span>
+                  <button onClick={()=>setVincSelecionados([])} style={{...S.btnGhost,padding:"5px 10px",fontSize:12}}>Limpar seleção</button>
+                </div>
+              )}
+
+              {/* Botões */}
+              <div style={{display:"flex",gap:10,justifyContent:"space-between",marginTop:16,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:8}}>
+                  {vincModo==="vinculados"&&vincSelecionados.length>0&&(
+                    <button onClick={()=>confirmarVinculo("")} 
+                      style={{padding:"9px 16px",borderRadius:8,border:"1px solid #7f1d1d",background:"#450a0a",color:"#fca5a5",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                      🔓 Desvincular ({vincSelecionados.length})
+                    </button>
+                  )}
+                </div>
+                <div style={{display:"flex",gap:10}}>
+                  <button style={S.btnGhost} onClick={()=>setModalVinc(null)}>Cancelar</button>
+                  {vincModo!=="vinculados"&&(
+                    <button onClick={()=>confirmarVinculo(modalVinc.servico)} disabled={vincSelecionados.length===0}
+                      style={{padding:"9px 18px",borderRadius:8,border:"none",cursor:vincSelecionados.length===0?"not-allowed":"pointer",background:vincSelecionados.length===0?"#1e2a3a":"#78350f",color:vincSelecionados.length===0?"#475569":"#fbbf24",fontSize:13,fontWeight:700}}>
+                      🔗 Vincular {vincSelecionados.length>0?`(${vincSelecionados.length})`:""}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
@@ -1235,42 +1532,54 @@ function FinanceiroView({obras,lancamentos,addLancamento,deleteLancamento}){
         </div>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela compacta */}
       <div style={S.card}>
         {filtered.length===0
           ?<div style={{textAlign:"center",padding:40,color:"#334155"}}>Nenhum lançamento encontrado</div>
           :(
           <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+              <colgroup>
+                <col style={{width:"70px"}}/>
+                <col style={{width:"14%"}}/>
+                <col style={{width:"58px"}}/>
+                <col style={{width:"22%"}}/>
+                <col style={{width:"auto"}}/>
+                <col style={{width:"14%"}}/>
+                <col style={{width:"110px"}}/>
+                <col style={{width:"28px"}}/>
+              </colgroup>
               <thead>
                 <tr style={{borderBottom:"1px solid #1e2a3a"}}>
-                  {["Data","Obra","Tipo","Categoria","Subcategoria","Descrição","Responsável","Pgto","Valor",""].map(h=>(
-                    <th key={h} style={{textAlign:"left",padding:"8px 12px",color:"#475569",fontWeight:500,whiteSpace:"nowrap"}}>{h}</th>
+                  {["Data","Obra","Tipo","Categoria","Descrição","Responsável","Valor",""].map(h=>(
+                    <th key={h} style={{textAlign:h==="Valor"?"right":"left",padding:"7px 8px",color:"#475569",fontWeight:600,fontSize:11,letterSpacing:.3,whiteSpace:"nowrap"}}>{h.toUpperCase()}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(l=>(
-                  <tr key={l.id} style={{borderBottom:"1px solid #0d1220",transition:"background .1s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="#111827"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <td style={{padding:"10px 12px",color:"#64748b",whiteSpace:"nowrap"}}>{fmtDate(l.data)}</td>
-                    <td style={{padding:"10px 12px",color:"#94a3b8",maxWidth:140}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{obraMap[l.obraId]||"—"}</div></td>
-                    <td style={{padding:"10px 12px"}}><span style={{...S.tag,background:l.tipo==="Receita"?"#052e16":"#450a0a",color:l.tipo==="Receita"?"#4ade80":"#f87171"}}>{l.tipo}</span></td>
-                    <td style={{padding:"10px 12px",color:"#94a3b8"}}>{l.categoria||"—"}</td>
-                    <td style={{padding:"10px 12px",color:"#64748b"}}>{l.subcategoria||"—"}</td>
-                    <td style={{padding:"10px 12px",color:"#e2e8f0",maxWidth:200}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
-                    <td style={{padding:"10px 12px",color:"#64748b"}}>{l.responsavel||"—"}</td>
-                    <td style={{padding:"10px 12px",color:"#475569",whiteSpace:"nowrap"}}>{l.pagamento||"—"}</td>
-                    <td style={{padding:"10px 12px",fontWeight:700,color:l.tipo==="Receita"?"#4ade80":"#f87171",whiteSpace:"nowrap"}}>{l.tipo==="Receita"?"+":"-"}{fmt(l.valor)}</td>
-                    <td style={{padding:"10px 12px"}}><button onClick={()=>deleteLancamento(l.id)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:15,padding:2}}>✕</button></td>
-                  </tr>
-                ))}
+                {filtered.map(l=>{
+                  const cat=l.categoria||"";
+                  const sub=l.subcategoria||"";
+                  return(
+                    <tr key={l.id} style={{borderBottom:"1px solid #0d1220",transition:"background .1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#111827"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <td style={{padding:"8px 8px",color:"#64748b",whiteSpace:"nowrap",fontSize:11}}>{fmtDate(l.data)}</td>
+                      <td style={{padding:"8px 8px",color:"#94a3b8"}} title={obraMap[l.obraId]||"—"}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{obraMap[l.obraId]||"—"}</div></td>
+                      <td style={{padding:"8px 8px"}}><span style={{display:"inline-block",padding:"2px 6px",borderRadius:4,fontSize:10,fontWeight:700,background:l.tipo==="Receita"?"#052e16":"#450a0a",color:l.tipo==="Receita"?"#4ade80":"#f87171"}}>{l.tipo==="Receita"?"REC":"DES"}</span></td>
+                      <td style={{padding:"8px 8px",color:"#94a3b8"}} title={`${cat}${sub?` · ${sub}`:""}`}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat||"—"}{sub&&<span style={{color:"#64748b",fontSize:10}}> · {sub}</span>}</div></td>
+                      <td style={{padding:"8px 8px",color:"#e2e8f0"}} title={l.descricao||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
+                      <td style={{padding:"8px 8px",color:"#64748b"}} title={l.responsavel||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.responsavel||"—"}</div></td>
+                      <td style={{padding:"8px 8px",fontWeight:700,color:l.tipo==="Receita"?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right",fontSize:12}} title={l.pagamento?`Pgto: ${l.pagamento}`:""}>{l.tipo==="Receita"?"+":"-"}{fmt(l.valor)}</td>
+                      <td style={{padding:"8px 4px",textAlign:"center"}}><button onClick={()=>deleteLancamento(l.id)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:13,padding:0}} title="Excluir">✕</button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
-                <tr style={{borderTop:"2px solid #1e2a3a"}}>
-                  <td colSpan={8} style={{padding:"10px 12px",color:"#64748b",fontSize:12}}>{filtered.length} lançamento(s)</td>
-                  <td style={{padding:"10px 12px",fontWeight:700,color:(totalRec-totalDesp)>=0?"#4ade80":"#f87171",whiteSpace:"nowrap"}}>{fmt(totalRec-totalDesp)}</td>
+                <tr style={{borderTop:"2px solid #1e2a3a",fontWeight:700}}>
+                  <td colSpan={6} style={{padding:"10px 8px",color:"#64748b",fontSize:11}}>{filtered.length} lançamento(s)</td>
+                  <td style={{padding:"10px 8px",fontWeight:700,color:(totalRec-totalDesp)>=0?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right"}}>{fmt(totalRec-totalDesp)}</td>
                   <td/>
                 </tr>
               </tfoot>
@@ -2165,6 +2474,10 @@ export default function App(){
   const addLancamento=useCallback(lan=>setLancamentos(p=>[...p,{...lan,id:uid(),criadoEm:new Date().toISOString()}]),[]);
   const deleteLancamento=useCallback(id=>setLancamentos(p=>p.filter(l=>l.id!==id)),[]);
   const updateObra=useCallback(obra=>setObras(p=>p.map(o=>o.id===obra.id?obra:o)),[]);
+  const vincularLancamentos=useCallback((ids,novaSubcategoria)=>{
+    setLancamentos(p=>p.map(l=>ids.includes(l.id)?{...l,subcategoria:novaSubcategoria}:l));
+    showToast(true,`${ids.length} lançamento(s) ${novaSubcategoria?"vinculado(s) à empreitada":"desvinculado(s)"}!`);
+  },[]);
   const changeView=useCallback(v=>{setView(v);setSelectedObra(null)},[]);
   const goToObra=useCallback(id=>{setSelectedObra(id);setView("obra-detail")},[]);
 
@@ -2244,7 +2557,7 @@ export default function App(){
       <main style={S.main}>
         {view==="dashboard"&&<DashboardView obras={obras} obraStats={obraStats} lancamentos={lancamentos} setView={changeView} setSelectedObra={setSelectedObra} goToObra={goToObra}/>}
         {view==="obras"&&<ObrasView obras={obras} setObras={setObras} obraStats={obraStats} setView={changeView} setSelectedObra={setSelectedObra} goToObra={goToObra}/>}
-        {view==="obra-detail"&&<ObraDetail obra={obras.find(o=>o.id===selectedObra)} stats={obraStats[selectedObra]} lancamentos={lancamentos.filter(l=>l.obraId===selectedObra)} setView={changeView} onUpdateObra={updateObra} addLancamento={addLancamento} allObras={obras}/>}
+        {view==="obra-detail"&&<ObraDetail obra={obras.find(o=>o.id===selectedObra)} stats={obraStats[selectedObra]} lancamentos={lancamentos.filter(l=>l.obraId===selectedObra)} setView={changeView} onUpdateObra={updateObra} addLancamento={addLancamento} allObras={obras} onVincularLancamentos={vincularLancamentos}/>}
         {view==="financeiro"&&<FinanceiroView obras={obras} lancamentos={lancamentos} addLancamento={addLancamento} deleteLancamento={deleteLancamento}/>}
         {view==="mao-de-obra"&&<MaoDeObraView obras={obras} equipes={equipes} setEquipes={setEquipes} addLancamento={addLancamento} lancamentos={lancamentos}/>}
         {view==="relatorios"&&<RelatoriosView obras={obras} lancamentos={lancamentos} obraStats={obraStats}/>}
