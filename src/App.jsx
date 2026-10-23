@@ -445,78 +445,123 @@ function ObraForm({obra,onSave,onClose}){
 function ObrasView({obras,setObras,obraStats,setView,setSelectedObra,goToObra}){
   const [modal,setModal]=useState(false);
   const [editing,setEditing]=useState(null);
-  const [filter,setFilter]=useState("Todos");
+  const [filter,setFilter]=useState("Ativas");
   const [del,setDel]=useState(null);
+  const [showFinalizadas,setShowFinalizadas]=useState(false);
 
-  const filtered = filter==="Todos"?obras:obras.filter(o=>o.status===filter);
+  // Separar ativas (não finalizadas) das finalizadas
+  const ativas = obras.filter(o=>o.status!=="Finalizada");
+  const finalizadas = obras.filter(o=>o.status==="Finalizada");
+  
+  const filtered = filter==="Ativas"?ativas:filter==="Todos"?obras:obras.filter(o=>o.status===filter);
+  
   const save = o=>{
     setObras(p=>editing?p.map(x=>x.id===o.id?o:x):[...p,o]);
     setModal(false);setEditing(null);
   };
   const remove=id=>{setObras(p=>p.filter(x=>x.id!==id));setDel(null)};
 
+  // Card compacto reutilizável
+  const CardObra = ({o,arquivada=false})=>{
+    const st=obraStats[o.id]||{};
+    const lucro=(o.valorContrato||0)-(st.despesas||0);
+    const positivo=lucro>=0;
+    const tc=tipoColor(o.tipo);
+    const execPct=pct(st.despesas||0,o.valorContrato||0);
+    return(
+      <div key={o.id} style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"border-color .2s",opacity:arquivada?0.75:1}}
+        onMouseEnter={e=>e.currentTarget.style.borderColor=arquivada?"#334155":"#f59e0b"}
+        onMouseLeave={e=>e.currentTarget.style.borderColor="#1e2a3a"}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:"#f1f5f9",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.nome}</div>
+            <div style={{fontSize:11,color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.cliente}</div>
+          </div>
+          <Tag s={o.status}/>
+        </div>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
+          <span style={{...S.tag,...tc,fontSize:10,padding:"2px 7px"}}>{o.tipo}</span>
+          {o.modalidade==="Construção e Venda"&&<span style={{...S.tag,background:"#2d1b69",color:"#c4b5fd",fontSize:10,padding:"2px 7px"}}>🏗 C/V</span>}
+          {o.metrosQuadrados>0&&<span style={{...S.tag,background:"#0c1f3a",color:"#93c5fd",fontSize:10,padding:"2px 7px"}}>{o.metrosQuadrados}m²</span>}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontWeight:600,letterSpacing:.3}}>CONTRATO</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#f59e0b"}}>{fmt(o.valorContrato||0)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontWeight:600,letterSpacing:.3}}>SALDO</div>
+            <div style={{fontSize:13,fontWeight:700,color:positivo?"#4ade80":"#f87171"}}>{fmt(st.saldo||0)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontWeight:600,letterSpacing:.3}}>RECEBIDO</div>
+            <div style={{fontSize:11,color:"#94a3b8"}}>{fmt(st.recebido||0)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:9,color:"#475569",fontWeight:600,letterSpacing:.3}}>GASTO</div>
+            <div style={{fontSize:11,color:"#94a3b8"}}>{fmt(st.despesas||0)}</div>
+          </div>
+        </div>
+        <div style={{marginBottom:10}}>
+          <div style={{background:"#1e2a3a",borderRadius:3,height:4,overflow:"hidden"}}>
+            <div style={{height:"100%",background:execPct>100?"#ef4444":"#f59e0b",width:`${Math.min(100,execPct)}%`,borderRadius:3,transition:"width .5s"}}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#475569",marginTop:2}}>
+            <span>Execução</span><span>{execPct}%</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:5}}>
+          <button style={{...S.btnPrimary,flex:1,padding:"6px 0",fontSize:11}} onClick={()=>goToObra(o.id)}>Dashboard</button>
+          <button style={{...S.btnGhost,padding:"6px 8px",fontSize:11}} onClick={e=>{e.stopPropagation();setEditing(o);setModal(true)}}>✎</button>
+          <button style={{...S.btnDanger,padding:"6px 8px",fontSize:11}} onClick={e=>{e.stopPropagation();setDel(o.id)}}>✕</button>
+        </div>
+      </div>
+    );
+  };
+
   return(
     <div>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');`}</style>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
         <div>
           <h1 style={S.h1}>Obras</h1>
-          <p style={S.muted}>{obras.length} obra{obras.length!==1?"s":""} cadastrada{obras.length!==1?"s":""}</p>
+          <p style={S.muted}>{ativas.length} ativa{ativas.length!==1?"s":""} · {finalizadas.length} finalizada{finalizadas.length!==1?"s":""}</p>
         </div>
         <button style={S.btnPrimary} onClick={()=>{setEditing(null);setModal(true)}}>+ Nova Obra</button>
       </div>
-      <div style={{display:"flex",gap:8,marginBottom:20}}>
-        {["Todos",...STATUS_OBRA].map(s=>(
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+        {["Ativas","Em Andamento","Pausada","Todos"].map(s=>(
           <button key={s} onClick={()=>setFilter(s)}
-            style={{...S.btnGhost,background:filter===s?"#1a2b45":"transparent",color:filter===s?"#f59e0b":"#64748b",borderColor:filter===s?"#1e3a5f":"#1e2a3a"}}>
+            style={{...S.btnGhost,padding:"6px 12px",fontSize:12,background:filter===s?"#1a2b45":"transparent",color:filter===s?"#f59e0b":"#64748b",borderColor:filter===s?"#1e3a5f":"#1e2a3a"}}>
             {s}
           </button>
         ))}
       </div>
-      {filtered.length===0&&<div style={{...S.card,textAlign:"center",padding:48,color:"#334155"}}>Nenhuma obra encontrada. Crie a primeira!</div>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:16}}>
-        {filtered.map(o=>{
-          const st=obraStats[o.id]||{};
-          const lucro=o.valorContrato-(st.despesas||0);
-          const positivo=lucro>=0;
-          const tc=tipoColor(o.tipo);
-          return(
-            <div key={o.id} style={{...S.card,cursor:"pointer",transition:"border-color .2s",borderColor:"#1e2a3a"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor="#f59e0b"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor="#1e2a3a"}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                <div style={{flex:1}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:16,fontWeight:700,color:"#f1f5f9",marginBottom:4}}>{o.nome}</div>
-                  <div style={{fontSize:13,color:"#64748b"}}>{o.cliente}</div>
-                </div>
-                <Tag s={o.status}/>
+      {filtered.length===0&&<div style={{...S.card,textAlign:"center",padding:40,color:"#334155"}}>Nenhuma obra ativa. Crie a primeira ou veja as finalizadas abaixo.</div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+        {filtered.map(o=><CardObra key={o.id} o={o}/>)}
+      </div>
+
+      {/* Seção de obras FINALIZADAS — retrátil, excluídas dos cálculos globais */}
+      {finalizadas.length>0&&filter!=="Todos"&&(
+        <div style={{marginTop:28}}>
+          <button onClick={()=>setShowFinalizadas(!showFinalizadas)}
+            style={{width:"100%",background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:10,padding:"12px 16px",color:"#94a3b8",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span>📦 Obras Finalizadas ({finalizadas.length}) <span style={{color:"#475569",fontWeight:400,fontSize:11,marginLeft:6}}>— arquivadas, não entram nos totais globais</span></span>
+            <span style={{color:"#f59e0b",fontSize:16}}>{showFinalizadas?"▼":"▶"}</span>
+          </button>
+          {showFinalizadas&&(
+            <div style={{marginTop:12,padding:14,background:"#060b14",border:"1px dashed #1e2a3a",borderRadius:10}}>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:12,fontStyle:"italic"}}>
+                ℹ Obras arquivadas permanecem acessíveis para consulta e relatórios individuais, mas não impactam o Dashboard geral, Financeiro ou KPIs globais.
               </div>
-              {o.endereco&&<div style={{fontSize:12,color:"#475569",marginBottom:10}}>📍 {o.endereco}</div>}
-              <span style={{...S.tag,...tc,marginBottom:12,display:"inline-flex"}}>{o.tipo}</span>
-              <div style={{height:1,background:"#1e2a3a",margin:"12px 0"}}/>
-              <div style={S.grid2}>
-                <div><div style={{fontSize:11,color:"#475569",marginBottom:2}}>CONTRATO</div><div style={{fontSize:15,fontWeight:700,color:"#f59e0b"}}>{fmt(o.valorContrato)}</div></div>
-                <div><div style={{fontSize:11,color:"#475569",marginBottom:2}}>SALDO</div><div style={{fontSize:15,fontWeight:700,color:positivo?"#4ade80":"#f87171"}}>{fmt(st.saldo||0)}</div></div>
-                <div><div style={{fontSize:11,color:"#475569",marginBottom:2}}>RECEBIDO</div><div style={{fontSize:13,color:"#94a3b8"}}>{fmt(st.recebido||0)}</div></div>
-                <div><div style={{fontSize:11,color:"#475569",marginBottom:2}}>GASTO</div><div style={{fontSize:13,color:"#94a3b8"}}>{fmt(st.despesas||0)}</div></div>
-              </div>
-              <div style={{marginTop:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#475569",marginBottom:4}}>
-                  <span>Execução orçamentária</span><span>{pct(st.despesas||0,o.valorContrato)}%</span>
-                </div>
-                <div style={{background:"#1e2a3a",borderRadius:4,height:6,overflow:"hidden"}}>
-                  <div style={{height:"100%",background:pct(st.despesas||0,o.valorContrato)>100?"#ef4444":"#f59e0b",width:`${Math.min(100,pct(st.despesas||0,o.valorContrato))}%`,borderRadius:4,transition:"width .5s"}}/>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:16}}>
-                <button style={{...S.btnPrimary,flex:1,padding:"8px 0",fontSize:13}} onClick={()=>goToObra(o.id)}>Ver Dashboard</button>
-                <button style={{...S.btnGhost,padding:"8px 14px",fontSize:13}} onClick={e=>{e.stopPropagation();setEditing(o);setModal(true)}}>Editar</button>
-                <button style={{...S.btnDanger,padding:"8px 14px",fontSize:13}} onClick={e=>{e.stopPropagation();setDel(o.id)}}>✕</button>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+                {finalizadas.map(o=><CardObra key={o.id} o={o} arquivada/>)}
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      )}
       <Modal open={modal} onClose={()=>{setModal(false);setEditing(null)}} title={editing?"Editar Obra":"Nova Obra"}>
         <ObraForm obra={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null)}}/>
       </Modal>
@@ -617,20 +662,28 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
         </div>
       </div>
 
-      {filtrados.length===0?<div style={{color:"#334155",fontSize:13,textAlign:"center",padding:24}}>Nenhum lançamento encontrado com esses filtros</div>:(
+      {filtrados.length===0?<div style={{color:"#334155",fontSize:13,textAlign:"center",padding:24}}>Nenhum lançamento encontrado com esses filtros</div>:(()=>{
+        // Mostra coluna "Pago Por" só se for obra de Construção e Venda com sócios
+        const temSocios=obra.modalidade==="Construção e Venda"&&obra.socios&&obra.socios.length>0;
+        const socioMap=temSocios?Object.fromEntries(obra.socios.map((s,i)=>[s.id,{...s,cor:SOCIO_COLORS[i%SOCIO_COLORS.length]}])):{};
+        const headers=temSocios
+          ?["Data","Tipo","Categoria","Descrição","Responsável","Pago Por","Valor"]
+          :["Data","Tipo","Categoria","Descrição","Responsável","Valor"];
+        return(
         <div style={{overflowX:"auto",maxHeight:500}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
             <colgroup>
               <col style={{width:"72px"}}/>
               <col style={{width:"52px"}}/>
-              <col style={{width:"24%"}}/>
+              <col style={{width:temSocios?"20%":"24%"}}/>
               <col style={{width:"auto"}}/>
-              <col style={{width:"16%"}}/>
+              <col style={{width:temSocios?"14%":"16%"}}/>
+              {temSocios&&<col style={{width:"13%"}}/>}
               <col style={{width:"110px"}}/>
             </colgroup>
             <thead style={{position:"sticky",top:0,background:"#0d1220",zIndex:1}}>
               <tr style={{borderBottom:"1px solid #1e2a3a"}}>
-                {["Data","Tipo","Categoria","Descrição","Responsável","Valor"].map(h=>(
+                {headers.map(h=>(
                   <th key={h} style={{textAlign:h==="Valor"?"right":"left",padding:"7px 8px",color:"#475569",fontWeight:600,fontSize:11,letterSpacing:.3,whiteSpace:"nowrap"}}>{h.toUpperCase()}</th>
                 ))}
               </tr>
@@ -639,6 +692,7 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
               {filtrados.map(l=>{
                 const cat=l.categoria||"";
                 const sub=l.subcategoria||"";
+                const socio=temSocios&&l.pagoPor?socioMap[l.pagoPor]:null;
                 return(
                   <tr key={l.id} style={{borderBottom:"1px solid #111827",transition:"background .1s"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#111827"}
@@ -648,6 +702,16 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
                     <td style={{padding:"7px 8px",color:"#94a3b8"}} title={`${cat}${sub?` · ${sub}`:""}`}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat||"—"}{sub&&<span style={{color:"#64748b",fontSize:10}}> · {sub}</span>}</div></td>
                     <td style={{padding:"7px 8px",color:"#e2e8f0"}} title={l.descricao||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
                     <td style={{padding:"7px 8px",color:"#64748b"}} title={l.responsavel||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.responsavel||"—"}</div></td>
+                    {temSocios&&(
+                      <td style={{padding:"7px 8px"}} title={socio?socio.nome:"Conta da obra / Não atribuído"}>
+                        {socio?(
+                          <div style={{display:"flex",alignItems:"center",gap:5,overflow:"hidden"}}>
+                            <div style={{width:7,height:7,borderRadius:4,background:socio.cor,flexShrink:0}}/>
+                            <span style={{color:"#e2e8f0",fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{socio.nome}</span>
+                          </div>
+                        ):<span style={{color:"#475569",fontStyle:"italic",fontSize:10}}>—</span>}
+                      </td>
+                    )}
                     <td style={{padding:"7px 8px",fontWeight:700,color:l.tipo==="Receita"?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right",fontSize:12}} title={l.pagamento?`Pgto: ${l.pagamento}`:""}>{l.tipo==="Receita"?"+":"-"}{fmt(l.valor)}</td>
                   </tr>
                 );
@@ -655,13 +719,14 @@ function RelatorioObraSection({obra,lancamentos,obraStats}){
             </tbody>
             <tfoot>
               <tr style={{borderTop:"2px solid #1e2a3a",fontWeight:700}}>
-                <td colSpan={5} style={{padding:"10px 8px",color:"#64748b",fontSize:11}}>{filtrados.length} lançamento(s)</td>
+                <td colSpan={temSocios?6:5} style={{padding:"10px 8px",color:"#64748b",fontSize:11}}>{filtrados.length} lançamento(s)</td>
                 <td style={{padding:"10px 8px",color:(totalRec-totalDesp)>=0?"#4ade80":"#f87171",whiteSpace:"nowrap",textAlign:"right"}}>{fmt(totalRec-totalDesp)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -1003,15 +1068,29 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
         });
         const naoAtribuido=despesas.filter(l=>!l.pagoPor||!obra.socios.find(s=>s.id===l.pagoPor)).reduce((sum,l)=>sum+l.valor,0);
         const valorVendaTotal=obra.valorVendaReal>0?"real":"estimado";
+        // Subtração dos acertos (diferença entre quem pagou a mais vs quem pagou a menos)
+        const acertoLiquido=acertos.reduce((s,x)=>s+x.saldoAcerto,0);
         return(
           <div style={{background:"#1a0f2e",border:"1px solid #5b21b6",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-              <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14,flexWrap:"wrap",gap:12}}>
+              <div style={{minWidth:0,flex:1}}>
                 <div style={{fontSize:12,color:"#c4b5fd",fontWeight:700,letterSpacing:.8}}>ACERTO DE CONTAS — SÓCIOS DO EMPREENDIMENTO</div>
                 <div style={{fontSize:11,color:"#64748b",marginTop:2}}>
                   Valor de venda ({valorVendaTotal}): <span style={{color:"#f59e0b",fontWeight:700}}>{fmt(valorVenda)}</span>
                   {valorVenda>0&&<> · Lucro projetado: <span style={{color:lucroVenda>=0?"#4ade80":"#f87171",fontWeight:700}}>{fmt(lucroVenda)}</span></>}
                 </div>
+              </div>
+              {/* Marcadores de sócios com valor desembolsado por cada um */}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                {acertos.map((s,i)=>(
+                  <div key={s.id} style={{display:"flex",alignItems:"center",gap:7,background:"#0d0618",border:"1px solid #4c1d95",borderRadius:8,padding:"6px 12px"}}>
+                    <div style={{width:9,height:9,borderRadius:5,background:SOCIO_COLORS[i%SOCIO_COLORS.length],flexShrink:0}}/>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:10,color:"#a78bfa",fontWeight:600,letterSpacing:.3}}>{s.nome.toUpperCase()}</div>
+                      <div style={{fontSize:13,color:"#f1f5f9",fontWeight:700,lineHeight:1.1}}>{fmt(s.pago)}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1052,7 +1131,12 @@ function ObraDetail({obra,stats,lancamentos,setView,onUpdateObra,addLancamento,a
                     <td style={{padding:"10px 12px",color:"#a78bfa",fontWeight:700}}>{obra.socios.reduce((s,x)=>s+x.percentual,0)}%</td>
                     <td style={{padding:"10px 12px",color:"#94a3b8",fontWeight:700}}>{fmt(totalDespesas)}</td>
                     <td style={{padding:"10px 12px",color:"#e2e8f0",fontWeight:700}}>{fmt(acertos.reduce((s,x)=>s+x.pago,0))}</td>
-                    <td/>
+                    <td style={{padding:"10px 12px",fontWeight:700,color:Math.abs(acertoLiquido)<1?"#64748b":acertoLiquido>0?"#4ade80":"#f87171"}}>
+                      {acertoLiquido>0?"+":""}{fmt(acertoLiquido)}
+                      <div style={{fontSize:10,color:"#475569",fontWeight:400,marginTop:1}}>
+                        {Math.abs(acertoLiquido)<1?"Contas equilibradas":"Diferença líquida"}
+                      </div>
+                    </td>
                     <td style={{padding:"10px 12px",color:lucroVenda>=0?"#4ade80":"#f87171",fontWeight:700}}>{valorVenda>0?fmt(lucroVenda):"—"}</td>
                   </tr>
                 </tfoot>
@@ -1438,8 +1522,15 @@ function FinanceiroView({obras,lancamentos,addLancamento,deleteLancamento}){
   const [filterTipo,setFilterTipo]=useState("");
   const [filterCat,setFilterCat]=useState("");
   const [search,setSearch]=useState("");
+  const [incluirFinalizadas,setIncluirFinalizadas]=useState(false);
+
+  const obrasAtivas=obras.filter(o=>o.status!=="Finalizada");
+  const idsAtivos=new Set(obrasAtivas.map(o=>o.id));
+  const qtdFinalizadas=obras.length-obrasAtivas.length;
 
   const filtered=lancamentos.filter(l=>{
+    // Excluir finalizadas por padrão (a menos que esteja filtrando uma obra específica ou toggle ligado)
+    if(!filterObra&&!incluirFinalizadas&&!idsAtivos.has(l.obraId))return false;
     if(filterObra&&l.obraId!==filterObra)return false;
     if(filterTipo&&l.tipo!==filterTipo)return false;
     if(filterCat&&l.categoria!==filterCat)return false;
@@ -1458,9 +1549,17 @@ function FinanceiroView({obras,lancamentos,addLancamento,deleteLancamento}){
 
   return(
     <div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div><h1 style={S.h1}>Financeiro</h1><p style={S.muted}>Central de lançamentos — receitas, despesas e materiais</p></div>
-        <button style={S.btnPrimary} onClick={()=>abrirLancamento(null)}>+ Novo Lançamento</button>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div><h1 style={S.h1}>Financeiro</h1><p style={S.muted}>Central de lançamentos — receitas, despesas e materiais{qtdFinalizadas>0&&!incluirFinalizadas&&!filterObra?` · ${qtdFinalizadas} obra${qtdFinalizadas!==1?"s":""} finalizada${qtdFinalizadas!==1?"s":""} oculta${qtdFinalizadas!==1?"s":""}`:""}</p></div>
+        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+          {qtdFinalizadas>0&&!filterObra&&(
+            <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#64748b",cursor:"pointer",padding:"7px 12px",border:"1px solid #1e2a3a",borderRadius:8,background:incluirFinalizadas?"#1a2b45":"transparent"}}>
+              <input type="checkbox" checked={incluirFinalizadas} onChange={e=>setIncluirFinalizadas(e.target.checked)} style={{cursor:"pointer"}}/>
+              Incluir finalizadas
+            </label>
+          )}
+          <button style={S.btnPrimary} onClick={()=>abrirLancamento(null)}>+ Novo Lançamento</button>
+        </div>
       </div>
 
       {/* KPIs principais */}
@@ -1505,8 +1604,15 @@ function FinanceiroView({obras,lancamentos,addLancamento,deleteLancamento}){
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           <input style={{...S.input,flex:1,minWidth:180}} placeholder="Buscar descrição, categoria, responsável..." value={search} onChange={e=>setSearch(e.target.value)}/>
           <select style={{...S.input,width:190}} value={filterObra} onChange={e=>setFilterObra(e.target.value)}>
-            <option value="">Todas as obras</option>
-            {obras.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+            <option value="">Todas as obras {!incluirFinalizadas&&qtdFinalizadas>0?"ativas":""}</option>
+            <optgroup label="Ativas">
+              {obrasAtivas.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+            </optgroup>
+            {qtdFinalizadas>0&&(
+              <optgroup label="Finalizadas (consulta)">
+                {obras.filter(o=>o.status==="Finalizada").map(o=><option key={o.id} value={o.id}>📦 {o.nome}</option>)}
+              </optgroup>
+            )}
           </select>
           <select style={{...S.input,width:140}} value={filterTipo} onChange={e=>setFilterTipo(e.target.value)}>
             <option value="">Tipo</option>
@@ -1603,10 +1709,76 @@ function MaoDeObraView({obras,equipes,setEquipes,addLancamento,lancamentos}){
   const [modalLanc,setModalLanc]=useState(false);
   const [novaEquipe,setNovaEquipe]=useState({nome:"",tipo:"Alvenaria",responsavel:""});
   const [lanc,setLanc]=useState({obraId:obras[0]?.id||"",equipeId:"",periodo:"",valor:"",obs:"",data:today()});
+  const [gerandoPDF,setGerandoPDF]=useState(false);
+  const [incluirFinalizadas,setIncluirFinalizadas]=useState(false);
+  
+  // Filtros
+  const [filterObra,setFilterObra]=useState("");
+  const [filterMes,setFilterMes]=useState(""); // YYYY-MM
+  const [filterEmpreitada,setFilterEmpreitada]=useState("");
+  const [filterEmpreiteiro,setFilterEmpreiteiro]=useState("");
+  const [search,setSearch]=useState("");
 
-  const mdoLancs=lancamentos.filter(l=>l.categoria==="Mão de Obra").sort((a,b)=>b.data>a.data?1:-1);
   const obraMap=Object.fromEntries(obras.map(o=>[o.id,o.nome]));
   const eqMap=Object.fromEntries(equipes.map(e=>[e.id,e]));
+  
+  const obrasAtivas=obras.filter(o=>o.status!=="Finalizada");
+  const idsAtivos=new Set(obrasAtivas.map(o=>o.id));
+  const qtdFinalizadas=obras.length-obrasAtivas.length;
+  const obrasBase=incluirFinalizadas?obras:obrasAtivas;
+  
+  // Coletar todas as empreitadas das obras base (ativas + opcional finalizadas)
+  const todasEmpreitadas=useMemo(()=>obrasBase.flatMap(o=>(o.empreitadas||[]).map(e=>({...e,obraId:o.id,obraNome:o.nome}))),[obrasBase]);
+  const empreitadasNomes=useMemo(()=>[...new Set(todasEmpreitadas.map(e=>e.servico))].sort(),[todasEmpreitadas]);
+  
+  // Coletar todos os responsáveis únicos de lançamentos de MdO
+  const empreiteirosLista=useMemo(()=>{
+    const set=new Set();
+    lancamentos.filter(l=>l.categoria==="Mão de Obra"&&l.responsavel&&(incluirFinalizadas||idsAtivos.has(l.obraId)||filterObra===l.obraId)).forEach(l=>set.add(l.responsavel));
+    todasEmpreitadas.forEach(e=>e.empreiteiro&&set.add(e.empreiteiro));
+    return [...set].sort();
+  },[lancamentos,todasEmpreitadas,incluirFinalizadas,idsAtivos,filterObra]);
+
+  // Filtragem — exclui finalizadas por padrão
+  const mdoLancs=useMemo(()=>{
+    return lancamentos.filter(l=>{
+      if(l.tipo!=="Despesa"||l.categoria!=="Mão de Obra")return false;
+      // Exclui finalizadas por padrão (a menos que esteja filtrando a obra específica ou toggle ligado)
+      if(!filterObra&&!incluirFinalizadas&&!idsAtivos.has(l.obraId))return false;
+      if(filterObra&&l.obraId!==filterObra)return false;
+      if(filterMes&&!(l.data||"").startsWith(filterMes))return false;
+      if(filterEmpreitada&&l.subcategoria!==filterEmpreitada)return false;
+      if(filterEmpreiteiro&&l.responsavel!==filterEmpreiteiro)return false;
+      if(search&&!`${l.descricao} ${l.subcategoria} ${l.responsavel} ${obraMap[l.obraId]||""}`.toLowerCase().includes(search.toLowerCase()))return false;
+      return true;
+    }).sort((a,b)=>b.data>a.data?1:-1);
+  },[lancamentos,filterObra,filterMes,filterEmpreitada,filterEmpreiteiro,search,obraMap,incluirFinalizadas,idsAtivos]);
+
+  // Empreitadas visíveis considerando filtros de obra
+  const empreitadasVisiveis=useMemo(()=>{
+    let list=todasEmpreitadas;
+    if(filterObra)list=list.filter(e=>e.obraId===filterObra);
+    if(filterEmpreitada)list=list.filter(e=>e.servico===filterEmpreitada);
+    if(filterEmpreiteiro)list=list.filter(e=>e.empreiteiro===filterEmpreiteiro);
+    // adiciona pago (considerando filtro de mês se houver)
+    return list.map(e=>{
+      const pagoLans=lancamentos.filter(l=>l.tipo==="Despesa"&&l.categoria==="Mão de Obra"&&l.subcategoria===e.servico&&l.obraId===e.obraId);
+      const pagoAteFiltro=pagoLans.filter(l=>!filterMes||(l.data||"").startsWith(filterMes)||(l.data||"")<filterMes+"-32").reduce((s,l)=>s+l.valor,0);
+      const pagoTotal=pagoLans.reduce((s,l)=>s+l.valor,0);
+      return{...e,pagoAteFiltro:filterMes?pagoLans.filter(l=>(l.data||"")<=filterMes+"-31").reduce((s,l)=>s+l.valor,0):pagoTotal,pagoTotal};
+    });
+  },[todasEmpreitadas,filterObra,filterEmpreitada,filterEmpreiteiro,filterMes,lancamentos]);
+
+  // KPIs
+  const totalPago=mdoLancs.reduce((s,l)=>s+l.valor,0);
+  const qtdPagamentos=mdoLancs.length;
+  const obrasDistintas=new Set(mdoLancs.map(l=>l.obraId)).size;
+  const empreiteirosDistintos=new Set(mdoLancs.filter(l=>l.responsavel).map(l=>l.responsavel)).size;
+  const totalFechado=empreitadasVisiveis.reduce((s,e)=>s+e.valorFechado,0);
+  const totalPagoEmp=empreitadasVisiveis.reduce((s,e)=>s+e.pagoTotal,0);
+
+  const limparFiltros=()=>{setFilterObra("");setFilterMes("");setFilterEmpreitada("");setFilterEmpreiteiro("");setSearch("");};
+  const temFiltro=filterObra||filterMes||filterEmpreitada||filterEmpreiteiro||search;
 
   const saveEquipe=()=>{
     if(!novaEquipe.nome)return alert("Nome obrigatório");
@@ -1618,58 +1790,216 @@ function MaoDeObraView({obras,equipes,setEquipes,addLancamento,lancamentos}){
     if(!lanc.obraId)return alert("Selecione uma obra");
     if(!lanc.valor||parseFloat(lanc.valor)<=0)return alert("Valor inválido");
     const eq=eqMap[lanc.equipeId];
-    addLancamento({obraId:lanc.obraId,tipo:"Despesa",categoria:"Mão de Obra",subcategoria:eq?.tipo||"",descricao:`${eq?.nome||"Equipe"} · ${lanc.periodo}`,valor:parseFloat(lanc.valor),data:lanc.data,pagamento:"PIX",responsavel:eq?.responsavel||lanc.responsavel||""});
+    addLancamento({obraId:lanc.obraId,tipo:"Despesa",categoria:"Mão de Obra",subcategoria:eq?.tipo||"",descricao:`${eq?.nome||"Equipe"} · ${lanc.periodo}`,valor:parseFloat(lanc.valor),data:lanc.data,pagamento:"PIX",responsavel:eq?.responsavel||""});
     setLanc({obraId:obras[0]?.id||"",equipeId:"",periodo:"",valor:"",obs:"",data:today()});
     setModalLanc(false);
   };
 
+  const handleGerarPDF=async()=>{
+    if(mdoLancs.length===0&&empreitadasVisiveis.length===0)return alert("Nada para gerar. Ajuste os filtros ou registre lançamentos.");
+    setGerandoPDF(true);
+    try{
+      const filtros={
+        obra:filterObra?obraMap[filterObra]:"Todas",
+        mes:filterMes?new Date(filterMes+"-01").toLocaleDateString("pt-BR",{month:"long",year:"numeric"}):"Todos",
+        empreitada:filterEmpreitada||"Todas",
+        empreiteiro:filterEmpreiteiro||"Todos"
+      };
+      await gerarPDFMaoDeObra(mdoLancs,empreitadasVisiveis,obraMap,filtros);
+    }catch(e){console.error(e);alert("Erro ao gerar PDF");}
+    setGerandoPDF(false);
+  };
+
   return(
     <div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
-        <div><h1 style={S.h1}>Mão de Obra</h1><p style={S.muted}>Controle de equipes e pagamentos</p></div>
-        <div style={{display:"flex",gap:8}}>
-          <button style={S.btnGhost} onClick={()=>setModalEquipe(true)}>+ Cadastrar Equipe</button>
-          <button style={S.btnPrimary} onClick={()=>setModalLanc(true)}>+ Lançar Mão de Obra</button>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div><h1 style={S.h1}>Mão de Obra</h1><p style={S.muted}>Controle de empreitadas e pagamentos{qtdFinalizadas>0&&!incluirFinalizadas&&!filterObra?` · ${qtdFinalizadas} obra${qtdFinalizadas!==1?"s":""} finalizada${qtdFinalizadas!==1?"s":""} oculta${qtdFinalizadas!==1?"s":""}`:""}</p></div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          {qtdFinalizadas>0&&!filterObra&&(
+            <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#64748b",cursor:"pointer",padding:"7px 12px",border:"1px solid #1e2a3a",borderRadius:8,background:incluirFinalizadas?"#1a2b45":"transparent"}}>
+              <input type="checkbox" checked={incluirFinalizadas} onChange={e=>setIncluirFinalizadas(e.target.checked)} style={{cursor:"pointer"}}/>
+              Incluir finalizadas
+            </label>
+          )}
+          <button onClick={handleGerarPDF} disabled={gerandoPDF||mdoLancs.length===0}
+            style={{padding:"9px 16px",borderRadius:8,border:"none",cursor:gerandoPDF||mdoLancs.length===0?"not-allowed":"pointer",
+              background:mdoLancs.length===0?"#1e2a3a":"#450a0a",color:mdoLancs.length===0?"#475569":"#fca5a5",
+              fontSize:13,fontWeight:600}}>
+            {gerandoPDF?"⏳ Gerando...":"📄 Relatório PDF de MdO"}
+          </button>
+          <button style={S.btnGhost} onClick={()=>setModalEquipe(true)}>+ Equipe</button>
+          <button style={S.btnPrimary} onClick={()=>setModalLanc(true)}>+ Lançar MdO</button>
         </div>
       </div>
 
-      <div style={{marginBottom:20}}>
-        <h2 style={{...S.h2,marginBottom:12}}>Equipes Cadastradas</h2>
-        {equipes.length===0?<div style={{...S.card,color:"#334155",textAlign:"center",padding:32}}>Nenhuma equipe cadastrada</div>:(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
-            {equipes.map(e=>(
-              <div key={e.id} style={{...S.cardSm,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div>
-                  <div style={{fontWeight:700,color:"#f1f5f9",fontSize:15,marginBottom:4}}>{e.nome}</div>
-                  <div style={{fontSize:12,color:"#64748b"}}>{e.tipo}</div>
-                  {e.responsavel&&<div style={{fontSize:12,color:"#475569",marginTop:4}}>👤 {e.responsavel}</div>}
-                </div>
-                <button onClick={()=>setEquipes(p=>p.filter(x=>x.id!==e.id))} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:15}}>✕</button>
-              </div>
-            ))}
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:20}}>
+        <KpiCard label="Total Pago no Filtro" value={fmt(totalPago)} color="#f87171" icon="💸" sub={`${qtdPagamentos} pagamento(s)`}/>
+        <KpiCard label="Obras com MdO" value={obrasDistintas} color="#8b5cf6" icon="🏗" sub="no filtro"/>
+        <KpiCard label="Empreiteiros" value={empreiteirosDistintos} color="#c4b5fd" icon="👷" sub="distintos"/>
+        <KpiCard label="Empreitadas" value={empreitadasVisiveis.length} color="#fbbf24" icon="📋" sub={`${fmt(totalFechado)} fechado`}/>
+        <KpiCard label="% Executado" value={`${pct(totalPagoEmp,totalFechado)}%`} color={pct(totalPagoEmp,totalFechado)>=100?"#f87171":"#4ade80"} icon="📊" sub="das empreitadas"/>
+      </div>
+
+      {/* Filtros */}
+      <div style={{...S.card,padding:"14px 18px",marginBottom:16}}>
+        <div style={{fontSize:11,color:"#64748b",fontWeight:700,letterSpacing:.8,marginBottom:10}}>🔍 FILTROS</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10}}>
+          <div>
+            <label style={{fontSize:11,color:"#475569",display:"block",marginBottom:4}}>Obra</label>
+            <select style={{...S.input,padding:"8px 10px",fontSize:13}} value={filterObra} onChange={e=>setFilterObra(e.target.value)}>
+              <option value="">Todas as obras {!incluirFinalizadas&&qtdFinalizadas>0?"ativas":""}</option>
+              <optgroup label="Ativas">
+                {obrasAtivas.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+              </optgroup>
+              {qtdFinalizadas>0&&(
+                <optgroup label="Finalizadas (consulta)">
+                  {obras.filter(o=>o.status==="Finalizada").map(o=><option key={o.id} value={o.id}>📦 {o.nome}</option>)}
+                </optgroup>
+              )}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:"#475569",display:"block",marginBottom:4}}>Mês / Período</label>
+            <input type="month" style={{...S.input,padding:"8px 10px",fontSize:13}} value={filterMes} onChange={e=>setFilterMes(e.target.value)}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:"#475569",display:"block",marginBottom:4}}>Empreitada</label>
+            <select style={{...S.input,padding:"8px 10px",fontSize:13}} value={filterEmpreitada} onChange={e=>setFilterEmpreitada(e.target.value)}>
+              <option value="">Todas as empreitadas</option>
+              {empreitadasNomes.map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:"#475569",display:"block",marginBottom:4}}>Empreiteiro / Responsável</label>
+            <select style={{...S.input,padding:"8px 10px",fontSize:13}} value={filterEmpreiteiro} onChange={e=>setFilterEmpreiteiro(e.target.value)}>
+              <option value="">Todos</option>
+              {empreiteirosLista.map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:"#475569",display:"block",marginBottom:4}}>Buscar</label>
+            <input style={{...S.input,padding:"8px 10px",fontSize:13}} placeholder="Descrição, responsável..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+        </div>
+        {temFiltro&&(
+          <div style={{marginTop:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+            <button style={{...S.btnGhost,padding:"5px 10px",fontSize:11}} onClick={limparFiltros}>✕ Limpar filtros</button>
+            <span style={{fontSize:12,color:"#64748b"}}>Mostrando <strong style={{color:"#f59e0b"}}>{mdoLancs.length}</strong> pagamento(s) · Total: <strong style={{color:"#f87171"}}>{fmt(totalPago)}</strong></span>
           </div>
         )}
       </div>
 
-      <div>
-        <h2 style={{...S.h2,marginBottom:12}}>Lançamentos de Mão de Obra</h2>
-        <div style={S.card}>
-          {mdoLancs.length===0?<div style={{color:"#334155",textAlign:"center",padding:32}}>Nenhum lançamento de mão de obra registrado</div>:(
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-              <thead><tr style={{borderBottom:"1px solid #1e2a3a"}}>
-                {["Data","Obra","Equipe/Descrição","Período","Responsável","Valor"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",color:"#475569",fontWeight:500}}>{h}</th>)}
-              </tr></thead>
-              <tbody>{mdoLancs.map(l=>(
-                <tr key={l.id} style={{borderBottom:"1px solid #111827"}}>
-                  <td style={{padding:"10px 12px",color:"#64748b"}}>{fmtDate(l.data)}</td>
-                  <td style={{padding:"10px 12px",color:"#94a3b8"}}>{obraMap[l.obraId]||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#e2e8f0"}}>{l.descricao||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#64748b"}}>{l.subcategoria||"—"}</td>
-                  <td style={{padding:"10px 12px",color:"#64748b"}}>{l.responsavel||"—"}</td>
-                  <td style={{padding:"10px 12px",fontWeight:700,color:"#f87171"}}>-{fmt(l.valor)}</td>
+      {/* Empreitadas resumo */}
+      {empreitadasVisiveis.length>0&&(
+        <div style={{background:"#1a1206",border:"1px solid #78350f",borderRadius:12,padding:"14px 18px",marginBottom:16}}>
+          <div style={{fontSize:12,color:"#fbbf24",fontWeight:700,letterSpacing:.8,marginBottom:10}}>📋 EMPREITADAS NO FILTRO ({empreitadasVisiveis.length})</div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr style={{borderBottom:"1px solid #78350f"}}>
+                  {["Obra","Serviço","Empreiteiro","Fechado","Pago","Saldo","% "].map(h=>(
+                    <th key={h} style={{textAlign:h==="Fechado"||h==="Pago"||h==="Saldo"||h.startsWith("%")?"right":"left",padding:"6px 8px",color:"#a8a29e",fontWeight:600,fontSize:10,letterSpacing:.5}}>{h.toUpperCase()}</th>
+                  ))}
                 </tr>
-              ))}</tbody>
+              </thead>
+              <tbody>
+                {empreitadasVisiveis.map(e=>{
+                  const saldo=e.valorFechado-e.pagoTotal;
+                  const p=pct(e.pagoTotal,e.valorFechado);
+                  const cor=p>=100?"#ef4444":p>=80?"#f59e0b":"#10b981";
+                  return(
+                    <tr key={e.id+e.obraId} style={{borderBottom:"1px solid #292524"}}>
+                      <td style={{padding:"6px 8px",color:"#d6d3d1",fontSize:11}}>{e.obraNome}</td>
+                      <td style={{padding:"6px 8px",color:"#fef3c7",fontWeight:600}}>{e.servico}</td>
+                      <td style={{padding:"6px 8px",color:"#a8a29e"}}>{e.empreiteiro||"—"}</td>
+                      <td style={{padding:"6px 8px",color:"#fbbf24",fontWeight:600,textAlign:"right",whiteSpace:"nowrap"}}>{fmt(e.valorFechado)}</td>
+                      <td style={{padding:"6px 8px",color:"#f87171",fontWeight:600,textAlign:"right",whiteSpace:"nowrap"}}>{fmt(e.pagoTotal)}</td>
+                      <td style={{padding:"6px 8px",color:saldo<0?"#ef4444":"#10b981",fontWeight:600,textAlign:"right",whiteSpace:"nowrap"}}>{fmt(saldo)}</td>
+                      <td style={{padding:"6px 8px",color:cor,fontWeight:700,textAlign:"right"}}>{p}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{borderTop:"2px solid #78350f"}}>
+                  <td colSpan={3} style={{padding:"7px 8px",color:"#a8a29e",fontWeight:700,fontSize:11}}>TOTAL</td>
+                  <td style={{padding:"7px 8px",color:"#fbbf24",fontWeight:700,textAlign:"right"}}>{fmt(totalFechado)}</td>
+                  <td style={{padding:"7px 8px",color:"#f87171",fontWeight:700,textAlign:"right"}}>{fmt(totalPagoEmp)}</td>
+                  <td style={{padding:"7px 8px",color:(totalFechado-totalPagoEmp)>=0?"#10b981":"#ef4444",fontWeight:700,textAlign:"right"}}>{fmt(totalFechado-totalPagoEmp)}</td>
+                  <td style={{padding:"7px 8px",color:"#fbbf24",fontWeight:700,textAlign:"right"}}>{pct(totalPagoEmp,totalFechado)}%</td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Equipes cadastradas (colapsável) */}
+      {equipes.length>0&&(
+        <details style={{marginBottom:16}}>
+          <summary style={{cursor:"pointer",color:"#64748b",fontSize:13,padding:"8px 12px",background:"#0d1220",borderRadius:8,border:"1px solid #1e2a3a",listStyle:"none"}}>
+            👥 {equipes.length} equipe(s) cadastrada(s) — clique para expandir
+          </summary>
+          <div style={{marginTop:8,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+            {equipes.map(e=>(
+              <div key={e.id} style={{...S.cardSm,display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"10px 12px"}}>
+                <div>
+                  <div style={{fontWeight:700,color:"#f1f5f9",fontSize:13}}>{e.nome}</div>
+                  <div style={{fontSize:11,color:"#64748b"}}>{e.tipo}</div>
+                  {e.responsavel&&<div style={{fontSize:11,color:"#475569",marginTop:2}}>👤 {e.responsavel}</div>}
+                </div>
+                <button onClick={()=>setEquipes(p=>p.filter(x=>x.id!==e.id))} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:13}}>✕</button>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* Tabela de pagamentos */}
+      <div>
+        <h2 style={{...S.h2,marginBottom:12}}>Pagamentos de Mão de Obra</h2>
+        <div style={S.card}>
+          {mdoLancs.length===0?<div style={{color:"#334155",textAlign:"center",padding:32}}>Nenhum pagamento encontrado com os filtros aplicados</div>:(
+            <div style={{overflowX:"auto",maxHeight:500}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+                <colgroup>
+                  <col style={{width:"72px"}}/>
+                  <col style={{width:"18%"}}/>
+                  <col style={{width:"18%"}}/>
+                  <col style={{width:"auto"}}/>
+                  <col style={{width:"18%"}}/>
+                  <col style={{width:"110px"}}/>
+                </colgroup>
+                <thead style={{position:"sticky",top:0,background:"#0d1220",zIndex:1}}>
+                  <tr style={{borderBottom:"1px solid #1e2a3a"}}>
+                    {["Data","Obra","Empreitada","Descrição","Empreiteiro","Valor"].map(h=>(
+                      <th key={h} style={{textAlign:h==="Valor"?"right":"left",padding:"7px 8px",color:"#475569",fontWeight:600,fontSize:11,letterSpacing:.3,whiteSpace:"nowrap"}}>{h.toUpperCase()}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {mdoLancs.map(l=>(
+                    <tr key={l.id} style={{borderBottom:"1px solid #111827",transition:"background .1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#111827"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <td style={{padding:"7px 8px",color:"#64748b",whiteSpace:"nowrap",fontSize:11}}>{fmtDate(l.data)}</td>
+                      <td style={{padding:"7px 8px",color:"#94a3b8"}} title={obraMap[l.obraId]||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{obraMap[l.obraId]||"—"}</div></td>
+                      <td style={{padding:"7px 8px",color:l.subcategoria?"#fbbf24":"#475569",fontStyle:l.subcategoria?"normal":"italic"}} title={l.subcategoria||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.subcategoria||"sem vínculo"}</div></td>
+                      <td style={{padding:"7px 8px",color:"#e2e8f0"}} title={l.descricao||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.descricao||"—"}</div></td>
+                      <td style={{padding:"7px 8px",color:"#94a3b8"}} title={l.responsavel||""}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.responsavel||"—"}</div></td>
+                      <td style={{padding:"7px 8px",fontWeight:700,color:"#f87171",textAlign:"right",whiteSpace:"nowrap",fontSize:12}}>{fmt(l.valor)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{borderTop:"2px solid #1e2a3a",fontWeight:700}}>
+                    <td colSpan={5} style={{padding:"10px 8px",color:"#64748b",fontSize:11}}>{mdoLancs.length} pagamento(s)</td>
+                    <td style={{padding:"10px 8px",color:"#f87171",textAlign:"right",whiteSpace:"nowrap"}}>{fmt(totalPago)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </div>
       </div>
@@ -1688,7 +2018,7 @@ function MaoDeObraView({obras,equipes,setEquipes,addLancamento,lancamentos}){
 
       <Modal open={modalLanc} onClose={()=>setModalLanc(false)} title="Lançar Mão de Obra">
         <div style={{background:"#052e16",border:"1px solid #166534",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#4ade80"}}>
-          ✓ O valor será automaticamente lançado como DESPESA e irá abater do saldo da obra.
+          ✓ O valor será automaticamente lançado como DESPESA e irá abater do saldo da obra (e da empreitada, se houver).
         </div>
         <div style={S.grid2}>
           <FormField label="Obra *">
@@ -1723,9 +2053,16 @@ function MaoDeObraView({obras,equipes,setEquipes,addLancamento,lancamentos}){
 // ═══════════════════════════════════════════════════════
 function DashboardView({obras,obraStats,lancamentos,setView,setSelectedObra,goToObra}){
   const [filtroObra,setFiltroObra]=useState("");
+  const [incluirFinalizadas,setIncluirFinalizadas]=useState(false);
 
-  const lans=filtroObra?lancamentos.filter(l=>l.obraId===filtroObra):lancamentos;
-  const obrasVisiveis=filtroObra?obras.filter(o=>o.id===filtroObra):obras;
+  // Obras ativas (excluindo finalizadas por padrão)
+  const obrasAtivas=obras.filter(o=>o.status!=="Finalizada");
+  const idsAtivos=new Set(obrasAtivas.map(o=>o.id));
+  const lansAtivos=incluirFinalizadas?lancamentos:lancamentos.filter(l=>idsAtivos.has(l.obraId));
+  
+  const lans=filtroObra?lancamentos.filter(l=>l.obraId===filtroObra):lansAtivos;
+  const obrasBase=incluirFinalizadas?obras:obrasAtivas;
+  const obrasVisiveis=filtroObra?obras.filter(o=>o.id===filtroObra):obrasBase;
 
   const totalContrato=obrasVisiveis.reduce((s,o)=>s+o.valorContrato,0);
   const totalRec=obrasVisiveis.reduce((s,o)=>s+(obraStats[o.id]?.recebido||0),0);
@@ -1780,14 +2117,27 @@ function DashboardView({obras,obraStats,lancamentos,setView,setSelectedObra,goTo
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24,gap:16,flexWrap:"wrap"}}>
         <div>
           <h1 style={S.h1}>Dashboard Geral</h1>
-          <p style={S.muted}>{obras.length} obra{obras.length!==1?"s":""} · {new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+          <p style={S.muted}>{obrasAtivas.length} ativa{obrasAtivas.length!==1?"s":""}{obras.length-obrasAtivas.length>0?` · ${obras.length-obrasAtivas.length} finalizada${obras.length-obrasAtivas.length!==1?"s":""}`:""} · {new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          {obras.length-obrasAtivas.length>0&&!filtroObra&&(
+            <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#64748b",cursor:"pointer",padding:"6px 10px",border:"1px solid #1e2a3a",borderRadius:8,background:incluirFinalizadas?"#1a2b45":"transparent"}}>
+              <input type="checkbox" checked={incluirFinalizadas} onChange={e=>setIncluirFinalizadas(e.target.checked)} style={{cursor:"pointer"}}/>
+              Incluir finalizadas
+            </label>
+          )}
           <span style={{fontSize:13,color:"#64748b",whiteSpace:"nowrap"}}>Filtrar por obra:</span>
           <select value={filtroObra} onChange={e=>setFiltroObra(e.target.value)}
             style={{...S.input,width:220,padding:"8px 12px",fontSize:13}}>
-            <option value="">Todas as obras</option>
-            {obras.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+            <option value="">Todas as obras {!incluirFinalizadas?"ativas":""}</option>
+            <optgroup label="Ativas">
+              {obrasAtivas.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+            </optgroup>
+            {obras.length-obrasAtivas.length>0&&(
+              <optgroup label="Finalizadas">
+                {obras.filter(o=>o.status==="Finalizada").map(o=><option key={o.id} value={o.id}>📦 {o.nome}</option>)}
+              </optgroup>
+            )}
           </select>
           {filtroObra&&<button onClick={()=>setFiltroObra("")} style={{...S.btnGhost,padding:"8px 12px",fontSize:12,whiteSpace:"nowrap"}}>✕ Limpar</button>}
         </div>
@@ -1996,6 +2346,231 @@ function DashboardView({obras,obraStats,lancamentos,setView,setSelectedObra,goTo
 // ═══════════════════════════════════════════════════════
 // PDF GENERATOR
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// PDF DE MÃO DE OBRA — Apenas empreitadas e pagamentos, sem valores globais da obra
+// ═══════════════════════════════════════════════════════
+async function gerarPDFMaoDeObra(pagamentos, empreitadas, obraMap, filtros){
+  const jsPDFModule = await import("jspdf");
+  const {jsPDF} = jsPDFModule;
+  const doc = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const pw = doc.internal.pageSize.getWidth();
+  const dataHoje = new Date().toLocaleDateString("pt-BR");
+  const totalPago = pagamentos.reduce((s,l)=>s+l.valor,0);
+  const totalFechado = empreitadas.reduce((s,e)=>s+e.valorFechado,0);
+  const totalPagoEmp = empreitadas.reduce((s,e)=>s+e.pagoTotal,0);
+
+  // Header roxo (cor de mão de obra)
+  doc.setFillColor(45,27,105);
+  doc.rect(0,0,pw,42,"F");
+  doc.setFillColor(139,92,246);
+  doc.rect(0,0,5,42,"F");
+  doc.setFillColor(196,181,253);
+  doc.rect(0,40,pw,0.5,"F");
+
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(18);
+  doc.setTextColor(245,243,255);
+  doc.text("RELATÓRIO DE MÃO DE OBRA",12,16);
+  doc.setFontSize(8);
+  doc.setTextColor(196,181,253);
+  doc.text("◆ CONFERÊNCIA DE PAGAMENTOS E EMPREITADAS",12,22);
+  
+  doc.setFontSize(9);
+  doc.setTextColor(196,181,253);
+  doc.text(`Emitido em ${dataHoje}`,pw-14,16,{align:"right"});
+  doc.setFontSize(7);
+  doc.setTextColor(196,181,253);
+  doc.text(`${pagamentos.length} pagamento(s) · ${empreitadas.length} empreitada(s)`,pw-14,22,{align:"right"});
+
+  // Filtros aplicados
+  doc.setFontSize(8);
+  doc.setTextColor(196,181,253);
+  const filtrosTxt=`Obra: ${filtros.obra}  |  Mês: ${filtros.mes}  |  Empreitada: ${filtros.empreitada}  |  Empreiteiro: ${filtros.empreiteiro}`;
+  doc.text(filtrosTxt,12,32);
+
+  let y=52;
+
+  // Resumo geral
+  doc.setFillColor(245,243,255);
+  doc.roundedRect(12,y,pw-24,22,3,3,"F");
+  doc.setFillColor(139,92,246);
+  doc.roundedRect(12,y,1.8,22,1,1,"F");
+  const kpis=[
+    {label:"TOTAL FECHADO (EMPREITADAS)",val:fmt(totalFechado),cor:[245,158,11]},
+    {label:"TOTAL PAGO",val:fmt(totalPagoEmp),cor:[239,68,68]},
+    {label:"SALDO A PAGAR",val:fmt(totalFechado-totalPagoEmp),cor:(totalFechado-totalPagoEmp)>=0?[16,185,129]:[239,68,68]},
+    {label:"% EXECUTADO",val:`${pct(totalPagoEmp,totalFechado)}%`,cor:[139,92,246]},
+  ];
+  const kw=(pw-32)/4;
+  kpis.forEach((k,i)=>{
+    const kx=17+i*kw;
+    doc.setFontSize(6.5);doc.setTextColor(100,116,139);doc.setFont("helvetica","bold");
+    doc.text(k.label,kx,y+7);
+    doc.setFontSize(10);doc.setTextColor(...k.cor);
+    doc.text(k.val,kx,y+15);
+  });
+  y+=28;
+
+  // Empreitadas
+  if(empreitadas.length>0){
+    if(y>250){doc.addPage();y=20;}
+    doc.setFillColor(255,247,237);
+    doc.roundedRect(12,y,pw-24,8,2,2,"F");
+    doc.setFillColor(245,158,11);
+    doc.roundedRect(12,y,1.8,8,1,1,"F");
+    doc.setFontSize(9);doc.setFont("helvetica","bold");doc.setTextColor(245,158,11);
+    doc.text(`EMPREITADAS FECHADAS — ${empreitadas.length}`,17,y+5.5);
+    y+=12;
+
+    // Header tabela
+    doc.setFillColor(250,250,252);
+    doc.rect(12,y-3,pw-24,5,"F");
+    doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.setTextColor(120,53,15);
+    doc.text("OBRA",14,y);
+    doc.text("SERVIÇO",55,y);
+    doc.text("EMPREITEIRO",95,y);
+    doc.text("FECHADO",130,y,{align:"right"});
+    doc.text("PAGO",155,y,{align:"right"});
+    doc.text("SALDO",pw-14,y,{align:"right"});
+    y+=5;
+
+    empreitadas.forEach(e=>{
+      if(y>270){doc.addPage();y=20;}
+      const saldo=e.valorFechado-e.pagoTotal;
+      doc.setFontSize(7.5);doc.setFont("helvetica","normal");doc.setTextColor(51,65,85);
+      doc.text((e.obraNome||"").substring(0,20),14,y);
+      doc.setTextColor(120,53,15);doc.setFont("helvetica","bold");
+      doc.text((e.servico||"").substring(0,18),55,y);
+      doc.setFont("helvetica","normal");doc.setTextColor(100,116,139);
+      doc.text((e.empreiteiro||"—").substring(0,16),95,y);
+      doc.setTextColor(245,158,11);doc.setFont("helvetica","bold");
+      doc.text(fmt(e.valorFechado),130,y,{align:"right"});
+      doc.setTextColor(239,68,68);
+      doc.text(fmt(e.pagoTotal),155,y,{align:"right"});
+      doc.setTextColor(...(saldo<0?[239,68,68]:[16,185,129]));
+      doc.text(fmt(saldo),pw-14,y,{align:"right"});
+      // Barra de progresso
+      const pctExec=Math.min(100,pct(e.pagoTotal,e.valorFechado));
+      doc.setFillColor(230,230,232);
+      doc.rect(14,y+1.5,pw-28,1,"F");
+      doc.setFillColor(...(pctExec>=100?[239,68,68]:pctExec>=80?[245,158,11]:[16,185,129]));
+      doc.rect(14,y+1.5,(pw-28)*pctExec/100,1,"F");
+      // Observação se houver
+      if(e.observacao){
+        y+=4;
+        doc.setFontSize(6.5);doc.setTextColor(100,116,139);doc.setFont("helvetica","italic");
+        const obs=e.observacao.substring(0,180);
+        const linhas=doc.splitTextToSize(obs,pw-30);
+        linhas.slice(0,2).forEach(l=>{doc.text(l,17,y);y+=3;});
+      }
+      y+=4;
+    });
+    y+=4;
+  }
+
+  // Pagamentos
+  if(pagamentos.length>0){
+    if(y>250){doc.addPage();y=20;}
+    doc.setFillColor(254,242,242);
+    doc.roundedRect(12,y,pw-24,8,2,2,"F");
+    doc.setFillColor(239,68,68);
+    doc.roundedRect(12,y,1.8,8,1,1,"F");
+    doc.setFontSize(9);doc.setFont("helvetica","bold");doc.setTextColor(239,68,68);
+    doc.text(`PAGAMENTOS EFETUADOS — ${pagamentos.length}`,17,y+5.5);
+    doc.text(`-${fmt(totalPago)}`,pw-14,y+5.5,{align:"right"});
+    y+=12;
+
+    // Header tabela
+    doc.setFillColor(250,250,252);
+    doc.rect(12,y-3,pw-24,5,"F");
+    doc.setFontSize(6.5);doc.setFont("helvetica","bold");doc.setTextColor(127,29,29);
+    doc.text("DATA",14,y);
+    doc.text("OBRA",34,y);
+    doc.text("EMPREITADA",70,y);
+    doc.text("DESCRIÇÃO",105,y);
+    doc.text("EMPREITEIRO",150,y);
+    doc.text("VALOR",pw-14,y,{align:"right"});
+    y+=5;
+
+    // Agrupa por obra para facilitar conferência
+    const porObra={};
+    pagamentos.forEach(l=>{
+      const nome=obraMap[l.obraId]||"Sem obra";
+      if(!porObra[nome])porObra[nome]=[];
+      porObra[nome].push(l);
+    });
+
+    Object.entries(porObra).forEach(([nomeObra,lans])=>{
+      if(y>265){doc.addPage();y=20;}
+      const subtotal=lans.reduce((s,l)=>s+l.valor,0);
+      // Header da obra
+      doc.setFillColor(254,226,226);
+      doc.rect(12,y-2,pw-24,4,"F");
+      doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(127,29,29);
+      doc.text(nomeObra.toUpperCase(),14,y);
+      doc.text(`${lans.length} pgto · ${fmt(subtotal)}`,pw-14,y,{align:"right"});
+      y+=4.5;
+
+      lans.forEach(l=>{
+        if(y>270){doc.addPage();y=20;}
+        doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(100,116,139);
+        doc.text(fmtDate(l.data),14,y);
+        doc.setTextColor(51,65,85);
+        doc.text(nomeObra.substring(0,17),34,y);
+        doc.setTextColor(245,158,11);doc.setFont("helvetica","bold");doc.setFontSize(6.5);
+        doc.text((l.subcategoria||"—").substring(0,15),70,y);
+        doc.setFont("helvetica","normal");doc.setTextColor(30,41,59);doc.setFontSize(7);
+        doc.text((l.descricao||"—").substring(0,22),105,y);
+        doc.setTextColor(100,116,139);
+        doc.text((l.responsavel||"—").substring(0,15),150,y);
+        doc.setTextColor(239,68,68);doc.setFont("helvetica","bold");
+        doc.text(fmt(l.valor),pw-14,y,{align:"right"});
+        doc.setDrawColor(240,220,220);
+        doc.line(14,y+1.5,pw-14,y+1.5);
+        y+=5;
+      });
+      y+=2;
+    });
+
+    // Total geral
+    if(y>270){doc.addPage();y=20;}
+    doc.setDrawColor(239,68,68);doc.setLineWidth(0.5);
+    doc.line(12,y,pw-12,y);y+=5;
+    doc.setFontSize(9);doc.setFont("helvetica","bold");doc.setTextColor(127,29,29);
+    doc.text("TOTAL PAGO NO PERÍODO",14,y);
+    doc.setTextColor(239,68,68);
+    doc.text(fmt(totalPago),pw-14,y,{align:"right"});
+    y+=6;
+  }
+
+  // Assinaturas (para conferência)
+  if(y<250){
+    y=Math.max(y+10,250);
+    doc.setDrawColor(200,200,210);
+    doc.line(20,y,90,y);
+    doc.line(pw-90,y,pw-20,y);
+    doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(100,116,139);
+    doc.text("Responsável (Milsoni Engenharia)",55,y+4,{align:"center"});
+    doc.text("Empreiteiro / Conferido por",pw-55,y+4,{align:"center"});
+  }
+
+  // Rodapé
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFillColor(45,27,105);doc.rect(0,283,pw,14,"F");
+    doc.setFillColor(139,92,246);doc.rect(0,283,pw,0.5,"F");
+    doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(196,181,253);
+    doc.text("OBRA GESTÃO · MÃO DE OBRA",12,289);
+    doc.setFont("helvetica","normal");doc.setTextColor(196,181,253);
+    doc.text(`Conferência de pagamentos · ${dataHoje}`,12,293);
+    doc.setTextColor(196,181,253);
+    doc.text(`Página ${i} de ${pages}`,pw-12,291,{align:"right"});
+  }
+
+  doc.save(`Relatorio_MaoDeObra_${dataHoje.replace(/\//g,"-")}.pdf`);
+}
+
 async function gerarPDFObra(obra, lancamentos, obraStats){
   const jsPDFModule = await import("jspdf");
   const {jsPDF} = jsPDFModule;
@@ -2285,8 +2860,20 @@ async function gerarPDFObra(obra, lancamentos, obraStats){
 function RelatoriosView({obras,lancamentos,obraStats}){
   const [filterObra,setFilterObra]=useState("");
   const [gerandoPDF,setGerandoPDF]=useState(null);
+  const [incluirFinalizadas,setIncluirFinalizadas]=useState(false);
 
-  const consolidado=obras.map(o=>{
+  const obrasAtivas=obras.filter(o=>o.status!=="Finalizada");
+  const obrasFinalizadas=obras.filter(o=>o.status==="Finalizada");
+  const qtdFinalizadas=obrasFinalizadas.length;
+  const obrasBase=incluirFinalizadas?obras:obrasAtivas;
+
+  const consolidado=obrasBase.map(o=>{
+    const st=obraStats[o.id]||{};
+    return{...o,...st,lucro:o.valorContrato-(st.despesas||0),margem:o.valorContrato>0?((o.valorContrato-(st.despesas||0))/o.valorContrato*100).toFixed(1):0};
+  });
+
+  // Finalizadas sempre disponíveis em uma lista separada para PDF individual
+  const consolidadoFinalizadas=obrasFinalizadas.map(o=>{
     const st=obraStats[o.id]||{};
     return{...o,...st,lucro:o.valorContrato-(st.despesas||0),margem:o.valorContrato>0?((o.valorContrato-(st.despesas||0))/o.valorContrato*100).toFixed(1):0};
   });
@@ -2306,8 +2893,14 @@ function RelatoriosView({obras,lancamentos,obraStats}){
 
   return(
     <div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
-        <div><h1 style={S.h1}>Relatórios</h1><p style={S.muted}>Análise consolidada de todas as obras</p></div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24,flexWrap:"wrap",gap:12}}>
+        <div><h1 style={S.h1}>Relatórios</h1><p style={S.muted}>Análise consolidada de obras {incluirFinalizadas?"ativas + finalizadas":"ativas"}{qtdFinalizadas>0&&!incluirFinalizadas?` · ${qtdFinalizadas} finalizada${qtdFinalizadas!==1?"s":""} em seção separada abaixo`:""}</p></div>
+        {qtdFinalizadas>0&&(
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#64748b",cursor:"pointer",padding:"7px 12px",border:"1px solid #1e2a3a",borderRadius:8,background:incluirFinalizadas?"#1a2b45":"transparent"}}>
+            <input type="checkbox" checked={incluirFinalizadas} onChange={e=>setIncluirFinalizadas(e.target.checked)} style={{cursor:"pointer"}}/>
+            Incluir finalizadas nos totais
+          </label>
+        )}
       </div>
 
       <div style={{...S.grid4,marginBottom:24}}>
@@ -2324,8 +2917,8 @@ function RelatoriosView({obras,lancamentos,obraStats}){
           <p style={{...S.muted,marginTop:4}}>Gere um relatório completo em PDF para cada obra, separado por categoria de despesa.</p>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-          {obras.length===0&&<div style={{color:"#334155",fontSize:13}}>Nenhuma obra cadastrada</div>}
-          {obras.map(o=>{
+          {obrasBase.length===0&&<div style={{color:"#334155",fontSize:13}}>Nenhuma obra ativa</div>}
+          {obrasBase.map(o=>{
             const st=obraStats[o.id]||{};
             const lucro=o.valorContrato-(st.despesas||0);
             const lansObra=lancamentos.filter(l=>l.obraId===o.id);
@@ -2415,6 +3008,80 @@ function RelatoriosView({obras,lancamentos,obraStats}){
           </table>
         </div>
       </div>
+
+      {/* SEÇÃO DE OBRAS FINALIZADAS — PDFs individuais, sem contagem global */}
+      {!incluirFinalizadas&&qtdFinalizadas>0&&(
+        <FinalizadasRelatorios obras={obrasFinalizadas} consolidado={consolidadoFinalizadas} lancamentos={lancamentos} obraStats={obraStats} gerandoPDF={gerandoPDF} handlePDF={handlePDF}/>
+      )}
+    </div>
+  );
+}
+
+function FinalizadasRelatorios({obras,consolidado,lancamentos,obraStats,gerandoPDF,handlePDF}){
+  const [aberto,setAberto]=useState(false);
+  const totalContrato=consolidado.reduce((s,o)=>s+o.valorContrato,0);
+  const totalRec=consolidado.reduce((s,o)=>s+(o.recebido||0),0);
+  const totalDesp=consolidado.reduce((s,o)=>s+(o.despesas||0),0);
+  const totalLucro=consolidado.reduce((s,o)=>s+o.lucro,0);
+  return(
+    <div style={{marginTop:28}}>
+      <button onClick={()=>setAberto(!aberto)}
+        style={{width:"100%",background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:10,padding:"12px 16px",color:"#94a3b8",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span>📦 Obras Finalizadas ({obras.length}) <span style={{color:"#475569",fontWeight:400,fontSize:11,marginLeft:6}}>— arquivadas, PDFs individuais disponíveis</span></span>
+        <span style={{color:"#f59e0b",fontSize:16}}>{aberto?"▼":"▶"}</span>
+      </button>
+      {aberto&&(
+        <div style={{marginTop:12,padding:16,background:"#060b14",border:"1px dashed #1e2a3a",borderRadius:10}}>
+          <div style={{fontSize:11,color:"#64748b",marginBottom:14,fontStyle:"italic"}}>
+            ℹ Totais exibidos aqui são apenas das obras finalizadas e NÃO entram nos KPIs globais acima. Use "Incluir finalizadas nos totais" no topo da página para unificar.
+          </div>
+          
+          {/* Mini KPIs das finalizadas */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:16}}>
+            <div style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:"#475569",fontWeight:600}}>CONTRATOS</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#f59e0b"}}>{fmt(totalContrato)}</div>
+            </div>
+            <div style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:"#475569",fontWeight:600}}>RECEBIDO</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#4ade80"}}>{fmt(totalRec)}</div>
+            </div>
+            <div style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:"#475569",fontWeight:600}}>GASTO</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#f87171"}}>{fmt(totalDesp)}</div>
+            </div>
+            <div style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:"#475569",fontWeight:600}}>LUCRO</div>
+              <div style={{fontSize:14,fontWeight:700,color:totalLucro>=0?"#4ade80":"#f87171"}}>{fmt(totalLucro)}</div>
+            </div>
+          </div>
+
+          {/* Cards de PDF individuais */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
+            {obras.map(o=>{
+              const st=obraStats[o.id]||{};
+              const lucro=o.valorContrato-(st.despesas||0);
+              const isGerando=gerandoPDF===o.id;
+              return(
+                <div key={o.id} style={{background:"#0d1220",border:"1px solid #1e2a3a",borderRadius:8,padding:"12px 14px",opacity:0.9}}>
+                  <div style={{fontWeight:700,color:"#f1f5f9",fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.nome}</div>
+                  <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>{o.cliente}</div>
+                  <div style={{display:"flex",gap:10,marginBottom:10,fontSize:11}}>
+                    <div><div style={{color:"#475569"}}>Contrato</div><div style={{color:"#f59e0b",fontWeight:700}}>{fmt(o.valorContrato)}</div></div>
+                    <div><div style={{color:"#475569"}}>Lucro</div><div style={{color:lucro>=0?"#4ade80":"#f87171",fontWeight:700}}>{fmt(lucro)}</div></div>
+                  </div>
+                  <button onClick={()=>handlePDF(o)} disabled={isGerando}
+                    style={{width:"100%",padding:"7px 0",borderRadius:7,border:"none",cursor:isGerando?"not-allowed":"pointer",
+                      background:isGerando?"#1e2a3a":"#450a0a",color:isGerando?"#475569":"#fca5a5",
+                      fontSize:11,fontWeight:600}}>
+                    {isGerando?"⏳ Gerando...":"📄 Gerar PDF"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
